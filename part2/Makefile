@@ -1,0 +1,41 @@
+CC = gcc
+CFLAGS = -g -Wall
+
+SRCDIR = src/
+BINDIR = bin/
+OBJDIR = obj/
+INCDIR = includes/
+
+
+$(BINDIR)mainClient: $(OBJDIR)audioclient.o $(OBJDIR)requete.o $(OBJDIR)client.o
+	$(CC) -o $(BINDIR)mainClient $(OBJDIR)audioclient.o $(OBJDIR)requete.o $(OBJDIR)client.o
+
+$(BINDIR)server: $(OBJDIR)audioserver.o $(OBJDIR)requete.o
+	$(CC) -o $(BINDIR)server $(OBJDIR)audioserver.o $(OBJDIR)requete.o
+
+$(OBJDIR)audioserver.o: $(SRCDIR)audioserver.c $(OBJDIR)requete.o
+	$(CC) $(CFLAGS) -c -I $(INCDIR) $(SRCDIR)audioserver.c -o $(OBJDIR)audioserver.o
+
+$(OBJDIR)audioclient.o: $(SRCDIR)audioclient.c $(OBJDIR)requete.o $(OBJDIR)client.o 
+	$(CC) $(CFLAGS) -c -I $(INCDIR) $(SRCDIR)audioclient.c -o $(OBJDIR)audioclient.o
+
+$(OBJDIR)audio.o: $(SRCDIR)/audio.c
+	gcc -Wall -c I $(INCDIR) $(SRCDIR)/audio.c -o $(OBJDIR)/audio.o
+
+
+$(OBJDIR)client.o: $(SRCDIR)client.c $(INCDIR)/client.h
+	$(CC) $(CFLAGS) -c -I $(INCDIR) $(SRCDIR)client.c -o $(OBJDIR)client.o
+
+
+$(OBJDIR)requete.o: $(SRCDIR)requete.c $(INCDIR)/requete.h
+	$(CC) $(CFLAGS) -c -I $(INCDIR) $(SRCDIR)requete.c -o $(OBJDIR)requete.o
+
+
+t: test
+	./a
+
+test: test.c $(OBJDIR)requete.o
+	$(CC) $(CFLAGS) -I $(INCDIR) test.c -o a $(OBJDIR)requete.o
+
+clean:
+	rm $(OBJDIR)*;rm $(BINDIR)*
