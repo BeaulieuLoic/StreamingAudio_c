@@ -8,8 +8,9 @@ server serveur;
 	arrèt du serveur proprement lorsque le signal SIGINT (ctrl + c) est reçu 
 */
 void arretServeur(int sig){
+	char *msgArret = "\nArret du serveur ...\n";
 	if (sig == SIGINT){
-		printf("Arret du serveur ...\n");
+		fprintf(stdout, "%s\n", msgArret);
 	}
 }
 

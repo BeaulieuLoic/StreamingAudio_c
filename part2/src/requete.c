@@ -66,7 +66,6 @@ void freeReq(requete* req){
 		}
 		free(req);
 	}
-	req = NULL;
 }
 
 int copyData(requete *req, char* buf){
