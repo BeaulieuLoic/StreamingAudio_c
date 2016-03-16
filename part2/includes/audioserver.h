@@ -12,16 +12,8 @@
 #include <netdb.h>
 #include <signal.h>
 
-#define S_portServer 5000
+#define AS_portServer 5000
 
-#define S_nbrClientMax 10
-
-void fermerConnexionClient(int idClientAEnlever);
-
-int accepterConnexion(int fdSocket,struct sockaddr_in *client);
-
-int initSocket();
-
-int genererIdUnique();
+void arretServeur(int sig);
 
 #endif
