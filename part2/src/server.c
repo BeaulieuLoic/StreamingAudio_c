@@ -1,6 +1,5 @@
 #include "server.h"
 
-
 /*
 	initialise la socket du serveur
 
@@ -48,8 +47,7 @@ int attendreMsg(server *serv){
 	erreur = recvfrom(serv->fdSocket,buffer,R_tailleMaxReq,0,
 			(struct sockaddr*) &(serv->addrClient),&fromlen);
 	if(erreur < 0){
-		perror("Erreur lors de la reception d'un message");
-		return -1;
+		return erreur;
 	}
 
 	freeReq(serv->reqRecv);
@@ -89,5 +87,93 @@ int genererIdUnique(){
 }
 
 void fermerConnexionClient(server *serv,int idClientAEnlever){
-	printf("fermeture de connexion id : %d ...\n", idClientAEnlever);
+	int erreur = 0;
+	char buffer[R_tailleMaxReq];
+	freeReq(serv->reqSend);
+	serv->reqSend = createRequete(R_okFermerCo, R_idNull, 0, NULL);
+
+	requeteToBytes(buffer, serv->reqSend);
+
+
+	erreur = sendto(serv->fdSocket, buffer,sizeofReq(serv->reqSend),0,
+		(struct sockaddr*) &(serv->addrClient), sizeof(struct sockaddr_in));
+	if (erreur < 0){
+		perror("Erreur lors de l'envois du message fermerConnexionClient");
+	}
+}
+
+
+int fichierNonTrouver(server *serv){
+	int erreur = 0;
+	char buffer[R_tailleMaxReq];
+	freeReq(serv->reqSend);
+	serv->reqSend = createRequete(R_fichierAudioNonTrouver, R_idNull,0, NULL);
+
+	requeteToBytes(buffer, serv->reqSend);
+
+
+	erreur = sendto(serv->fdSocket, buffer,sizeofReq(serv->reqSend),0,
+		(struct sockaddr*) &(serv->addrClient), sizeof(struct sockaddr_in));
+	if (erreur < 0){
+		perror("Erreur lors de l'envois du message fichierNonTrouver");
+		return -1;
+	}
+	return 0;
+}
+
+int fichierTrouver(server *serv, int rate, int size, int channels){
+	int erreur = 0;
+	char buffer[R_tailleMaxReq];
+	freeReq(serv->reqSend);
+
+	intToBytes(buffer, rate);
+	intToBytes(buffer+sizeof(int), size);
+	intToBytes(buffer+sizeof(int)*2, channels);
+	serv->reqSend = createRequete(R_okDemanderFichierAudio, R_idNull,sizeof(int)*3, buffer);
+
+	requeteToBytes(buffer, serv->reqSend);
+
+
+	erreur = sendto(serv->fdSocket, buffer,sizeofReq(serv->reqSend),0,
+		(struct sockaddr*) &(serv->addrClient), sizeof(struct sockaddr_in));
+	if (erreur < 0){
+		perror("Erreur lors de l'envois du message fichierTrouver");
+		return -1;
+	}
+	return 0;
+}
+
+int envoyerPartieFichier(server *serv, char *buf, int tailleBuf){
+	int erreur = 0;
+	char buffer[R_tailleMaxReq];
+	freeReq(serv->reqSend);
+	serv->reqSend = createRequete(R_okPartieSuivanteFichier, R_idNull, tailleBuf, buf);
+
+	requeteToBytes(buffer, serv->reqSend);
+
+
+	erreur = sendto(serv->fdSocket, buffer,sizeofReq(serv->reqSend),0,
+		(struct sockaddr*) &(serv->addrClient), sizeof(struct sockaddr_in));
+	if (erreur < 0){
+		perror("Erreur lors de l'envois du message envoyerPartieFichier");
+		return -1;
+	}
+	return 0;
+}
+
+int finFichier(server *serv){
+	int erreur = 0;
+	char buffer[R_tailleMaxReq];
+	freeReq(serv->reqSend);
+	serv->reqSend = createRequete(R_finFichier, R_idNull,0, NULL);
+
+	requeteToBytes(buffer, serv->reqSend);
+
+	erreur = sendto(serv->fdSocket, buffer,sizeofReq(serv->reqSend),0,
+		(struct sockaddr*) &(serv->addrClient), sizeof(struct sockaddr_in));
+	if (erreur < 0){
+		perror("Erreur lors de l'envois du message finFichier");
+		return -1;
+	}
+	return 0;
 }

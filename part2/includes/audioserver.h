@@ -16,4 +16,6 @@
 
 void arretServeur(int sig);
 
+int ouvertureFichier(char * nomFichier);
+
 #endif

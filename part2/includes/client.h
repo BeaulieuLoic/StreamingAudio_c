@@ -26,6 +26,7 @@ typedef struct cl{
 /* timeout en microseconde */
 #define C_timeoutDemandeCo 1000000 // = 1 seconde
 #define C_timeoutFermerCo 1000000 // = 1 seconde
+#define C_timeoutDemandeFichier 100000 // = 1 seconde
 
 
 
@@ -37,6 +38,8 @@ void fermerConnexion(client *cl);
 
 void arreterConnexion(client *cl);
 
-int demanderFichier(client *cl, char *nomFichier);
+int demanderFichierAudio(client *cl, char *nomFichier, int *rate, int *size, int *channels);
+
+int partieSuivante(client *cl, char *buf);
 
 #endif

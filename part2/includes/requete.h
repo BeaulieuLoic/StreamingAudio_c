@@ -51,25 +51,16 @@
 	data obligatoire, contient le nom du fichier à ouvrir
 
 */
-#define R_demanderFicher 3
+#define R_demanderFicherAudio 3
 
-#define R_okDemanderFicher 1003
+#define R_okDemanderFichierAudio 1003
+#define R_fichierAudioNonTrouver 1004
 
-/*
-	demande la suite du fichier actuellement ouvert
-	
-	id obligatoire
-	data non utile
-*/
-#define R_demanderSuivant 4
+#define R_demandePartieSuivanteFichier 12
+#define R_redemandePartieFichier 13
 
-/*
-	demande de renvoyer ce qui à été envoyer prédemement
-	
-	id obligatoire
-	data non utile
-*/
-#define R_redemanderPacket 5
+#define R_okPartieSuivanteFichier 1012
+#define R_finFichier 1013
 
 /*
 	Requete qu'envoi le serveur pour prévenir le client qu'il n'y à plus de place

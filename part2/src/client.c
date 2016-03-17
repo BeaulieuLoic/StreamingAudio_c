@@ -158,7 +158,7 @@ void arreterConnexion(client *cl){
 	printf("Echec de fermeture de connexion au serveur, aucune réponse\n");
 }
 
-int demanderFichier(client *cl, char *nomFichier){
+int demanderFichierAudio(client *cl, char *nomFichier, int *rate, int *size, int *channels){
 	printf("Demande de fichier : %s ...\n",nomFichier);
 	int nbrtentativeDeco = 0;
 	int nbrMaxTentative = 5;
@@ -166,7 +166,7 @@ int demanderFichier(client *cl, char *nomFichier){
 	char buffer[R_tailleMaxReq];
 
 	freeReq(cl->reqSend);
-	cl->reqSend = createRequete(R_demanderFicher, cl->id, strlen(nomFichier)+1,nomFichier);
+	cl->reqSend = createRequete(R_demanderFicherAudio, cl->id, strlen(nomFichier)+1,nomFichier);
 	requeteToBytes(buffer,cl->reqSend);
 
 
@@ -175,14 +175,14 @@ int demanderFichier(client *cl, char *nomFichier){
 			0, (struct sockaddr*) &(cl->addrSend), sizeof(struct sockaddr_in));
 
 		if (erreur < 0){
-			perror("Erreur lors de l'appel à demanderFichier, sendto renvois une erreur");
+			perror("Erreur lors de l'appel à demanderFichierAudio, sendto renvois une erreur");
 			return -1;
 		}
 
-		erreur = definirTimeOut(cl->fdSocket, C_timeoutFermerCo);
+		erreur = definirTimeOut(cl->fdSocket, C_timeoutDemandeFichier);
 
 		if (erreur < 0){
-			perror("Erreur lors de l'appel à demanderFichier, problème lors du select");
+			perror("Erreur lors de l'appel à demanderFichierAudio, problème lors du select");
 			return -2;
 		}else if(erreur == 0){
 			nbrtentativeDeco++;
@@ -192,15 +192,25 @@ int demanderFichier(client *cl, char *nomFichier){
 			erreur = recvfrom(cl->fdSocket,buffer,R_tailleMaxReq,
 				0,(struct sockaddr*) &(cl->addrRecv),&fromlen);
 			if (erreur < 0){
-				perror("Erreur lors de l'appel à demanderFichier, recvfrom renvois une erreur");
+				perror("Erreur lors de l'appel à demanderFichierAudio, recvfrom renvois une erreur");
 				return -3;
 			}
 
 			freeReq(cl->reqRecv);
 			cl->reqRecv = createRequeteFromBytes(buffer);
-			if (cl->reqRecv->typeReq == R_okDemanderFicher){
-				printf("Le serveur possède bien ce fichier\n");
+			if (cl->reqRecv->typeReq == R_okDemanderFichierAudio){
+				/* 
+					Le serveur possède bien ce fichier 
+					Demande d'information sur le fichier son
+				*/
+
+				*rate = bytesToInt(cl->reqRecv->data);
+				*size = bytesToInt(cl->reqRecv->data+sizeof(int));
+				*channels = bytesToInt(cl->reqRecv->data+sizeof(int)*2);
 				return 0;
+			}else if(cl->reqRecv->typeReq == R_fichierAudioNonTrouver){
+				printf("Le serveur ne possède pas ce fichier\n");
+				return -6;
 			}else{
 				printf("La requète reçu en réponse à la demande de fichier n'est pas prévue: %d\n",cl->reqRecv->typeReq);
 				return -4;
@@ -208,6 +218,68 @@ int demanderFichier(client *cl, char *nomFichier){
 			
 		}		
 	} while (nbrtentativeDeco < nbrMaxTentative);
+	printf("Echec de demande de fichier, aucune réponse\n");
+	return -5;
+}
+
+int partieSuivante(client *cl, char *buf){
+	int nbrTentative = 0;
+	int nbrMaxTentative = 5;
+	int erreur;
+	char buffer[R_tailleMaxReq];
+
+	freeReq(cl->reqSend);
+	cl->reqSend = createRequete(R_demandePartieSuivanteFichier, cl->id, 0, NULL);
+	requeteToBytes(buffer,cl->reqSend);
+
+
+	do{
+		erreur = sendto(cl->fdSocket, buffer, sizeofReq(cl->reqSend),
+			0, (struct sockaddr*) &(cl->addrSend), sizeof(struct sockaddr_in));
+
+		if (erreur < 0){
+			perror("Erreur lors de l'appel à partieSuivante, sendto renvois une erreur");
+			return -6;
+		}
+
+		erreur = definirTimeOut(cl->fdSocket, C_timeoutDemandeFichier);
+
+		if (erreur < 0){
+			perror("Erreur lors de l'appel à partieSuivante, problème lors du select");
+			return -2;
+		}else if(erreur == 0){
+			nbrTentative++;
+			freeReq(cl->reqSend);
+			cl->reqSend = createRequete(R_redemandePartieFichier, cl->id, 0, NULL);
+			requeteToBytes(buffer,cl->reqSend);
+			//printf("Le serveur ne répond pas, tentative n°%d\n", nbrTentative);
+		}else{/* si le serveur à reçu la demande de connexion */
+			socklen_t fromlen = sizeof(struct sockaddr_in);
+			erreur = recvfrom(cl->fdSocket,buffer,R_tailleMaxReq,
+				0,(struct sockaddr*) &(cl->addrRecv),&fromlen);
+			if (erreur < 0){
+				perror("Erreur lors de l'appel à partieSuivante, recvfrom renvois une erreur");
+				return -3;
+			}
+
+			freeReq(cl->reqRecv);
+			cl->reqRecv = createRequeteFromBytes(buffer);
+			if (cl->reqRecv->typeReq == R_okPartieSuivanteFichier){
+				memcpy(buf, cl->reqRecv->data, cl->reqRecv->tailleData);
+				return cl->reqRecv->tailleData;
+			}else if(cl->reqRecv->typeReq == R_finFichier){
+				printf("Fichier finit\n");
+				return -1;
+			}else if (cl->reqRecv->typeReq == R_fichierAudioNonTrouver){
+				printf("Erreur lors de partieSuivante, le serveur ne trouve pas le fichier\n");
+				return -7;
+			}else{
+				printf("La requète reçu en réponse à la demande de fichier n'est pas prévue: %d\n",cl->reqRecv->typeReq);
+				return -4;
+			}
+			
+		}		
+	} while (nbrTentative < nbrMaxTentative);
 	printf("Echec de demande de fichier, aucune réponse\n");
 	return -5;
 }

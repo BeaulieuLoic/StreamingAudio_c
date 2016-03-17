@@ -22,10 +22,5 @@
 #define AC_timeoutDemandeCo 1000000 // = 1 seconde
 
 
-//int initSocket(struct sockaddr_in *addrSend, const char * adrServ);
-
-//int demandeDeConnexion(int fdSocket,struct sockaddr_in *dest,struct sockaddr_in *from);
-
-//int fermetureConnexion(int id, int fdSocket, struct sockaddr_in *dest, struct sockaddr_in *from);
 
 #endif

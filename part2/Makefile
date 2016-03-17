@@ -7,11 +7,11 @@ OBJDIR = obj/
 INCDIR = includes/
 
 
-$(BINDIR)mainClient: $(OBJDIR)audioclient.o $(OBJDIR)requete.o $(OBJDIR)client.o
-	$(CC) -o $(BINDIR)mainClient $(OBJDIR)audioclient.o $(OBJDIR)requete.o $(OBJDIR)client.o
+$(BINDIR)mainClient: $(OBJDIR)audioclient.o $(OBJDIR)requete.o $(OBJDIR)client.o $(OBJDIR)audio.o
+	$(CC) -o $(BINDIR)mainClient $(OBJDIR)audioclient.o $(OBJDIR)requete.o $(OBJDIR)client.o $(OBJDIR)audio.o
 
-$(BINDIR)mainServer: $(OBJDIR)audioserver.o $(OBJDIR)requete.o $(OBJDIR)server.o
-	$(CC) -o $(BINDIR)mainServer $(OBJDIR)audioserver.o $(OBJDIR)requete.o $(OBJDIR)server.o
+$(BINDIR)mainServer: $(OBJDIR)audioserver.o $(OBJDIR)requete.o $(OBJDIR)server.o $(OBJDIR)audio.o
+	$(CC) -o $(BINDIR)mainServer $(OBJDIR)audioserver.o $(OBJDIR)requete.o $(OBJDIR)server.o $(OBJDIR)audio.o
 
 $(OBJDIR)audioserver.o: $(SRCDIR)audioserver.c $(OBJDIR)requete.o $(OBJDIR)server.o 
 	$(CC) $(CFLAGS) -c -I $(INCDIR) $(SRCDIR)audioserver.c -o $(OBJDIR)audioserver.o
@@ -19,19 +19,19 @@ $(OBJDIR)audioserver.o: $(SRCDIR)audioserver.c $(OBJDIR)requete.o $(OBJDIR)serve
 $(OBJDIR)audioclient.o: $(SRCDIR)audioclient.c $(OBJDIR)requete.o $(OBJDIR)client.o 
 	$(CC) $(CFLAGS) -c -I $(INCDIR) $(SRCDIR)audioclient.c -o $(OBJDIR)audioclient.o
 
-$(OBJDIR)audio.o: $(SRCDIR)/audio.c
-	gcc -Wall -c I $(INCDIR) $(SRCDIR)/audio.c -o $(OBJDIR)/audio.o
 
 
-$(OBJDIR)client.o: $(SRCDIR)client.c $(INCDIR)/client.h $(OBJDIR)requete.o
+$(OBJDIR)client.o: $(SRCDIR)client.c $(INCDIR)client.h $(OBJDIR)requete.o
 	$(CC) $(CFLAGS) -c -I $(INCDIR) $(SRCDIR)client.c -o $(OBJDIR)client.o
 
-$(OBJDIR)server.o: $(SRCDIR)server.c $(INCDIR)/server.h $(OBJDIR)requete.o
+$(OBJDIR)server.o: $(SRCDIR)server.c $(INCDIR)server.h $(OBJDIR)requete.o
 	$(CC) $(CFLAGS) -c -I $(INCDIR) $(SRCDIR)server.c -o $(OBJDIR)server.o
 
-$(OBJDIR)requete.o: $(SRCDIR)requete.c $(INCDIR)/requete.h
+$(OBJDIR)requete.o: $(SRCDIR)requete.c $(INCDIR)requete.h
 	$(CC) $(CFLAGS) -c -I $(INCDIR) $(SRCDIR)requete.c -o $(OBJDIR)requete.o
 
+$(OBJDIR)audio.o: $(SRCDIR)audio.c
+	gcc -Wall -c -I $(INCDIR) $(SRCDIR)audio.c -o $(OBJDIR)audio.o
 
 t: test
 	./a

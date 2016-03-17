@@ -36,4 +36,12 @@ void fermerConnexionClient(server *serv,int idClientAEnlever);
 
 int attendreMsg(server *serv);
 
+int fichierNonTrouver(server *serv);
+
+int fichierTrouver(server *serv, int rate, int size, int channels);
+
+int envoyerPartieFichier(server *serv, char *buf, int tailleBuf);
+
+int finFichier(server *serv);
+
 #endif
