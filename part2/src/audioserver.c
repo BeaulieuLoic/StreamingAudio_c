@@ -2,7 +2,7 @@
 #include "server.h"
 #include "audio.h"
 
-#include <time.h>
+#include <time.h> /*random, à enlever !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!*/
 
 server serveur;
 int serveurOccuper = 0;
@@ -26,13 +26,14 @@ int main(int argc, char const *argv[]) {
 	arretSig.sa_flags = 0;
 	sigaction(SIGINT, &arretSig, NULL);
 
+
 	int typeReq = -1;
 	char nomFichier[R_tailleMaxData];
 	int fdFichierAudio = -1;
 	int rate, size, channels;
 	int erreur = -1;
 	char buffer[R_tailleMaxData];
-	int lectureWav = -1;
+	int lectureWav = 0;
 
 	initServer(&serveur,AS_portServer);
 	while(1){
@@ -59,6 +60,7 @@ int main(int argc, char const *argv[]) {
 				fdFichierAudio = -1;
 				lectureWav = -1;
 				close(fdFichierAudio);
+				serveurOccuper = 0;
 				
 				break;
 			case R_demanderFicherAudio:
@@ -73,6 +75,7 @@ int main(int argc, char const *argv[]) {
 					printf("Fichier non trouvé\n");
 				}else{
 					fichierTrouver(&serveur, rate, size, channels);
+					lectureWav = read(fdFichierAudio, buffer, R_tailleMaxData);
 					printf("Fichier trouvé\n");
 				}
 				break;
@@ -81,9 +84,9 @@ int main(int argc, char const *argv[]) {
 				if (fdFichierAudio < 0){
 					fichierNonTrouver(&serveur);
 				}else{
-					lectureWav = read(fdFichierAudio, buffer, R_tailleMaxData);
 					if (lectureWav > 0){
 						envoyerPartieFichier(&serveur, buffer, lectureWav);
+						lectureWav = read(fdFichierAudio, buffer, R_tailleMaxData);
 					}else{
 						// Indique au client que le fichier est finit
 						// Le fichier est fermé lorsque le client ferme sa connexion avec le serveur

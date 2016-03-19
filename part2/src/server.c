@@ -1,9 +1,9 @@
 #include "server.h"
 
 /*
-	initialise la socket du serveur
+	Initialise la socket du serveur
 
-	renvoi le descripteur de fichier correspondant à la socket du serveur
+	Renvoi 0 si tout se passe bien
 */
 int initServer(server *serv, int portAUtilise){
 	serv->reqSend = NULL;
@@ -33,6 +33,9 @@ int initServer(server *serv, int portAUtilise){
 	return 0;
 }
 
+/*
+	Ferme le serveur, ce qui revient à ferme la socket et à désalouer les requetes 
+*/
 void fermerServer(server *serv){
 	freeReq(serv-> reqRecv);
 	freeReq(serv-> reqSend);

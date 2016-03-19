@@ -26,7 +26,7 @@ typedef struct cl{
 /* timeout en microseconde */
 #define C_timeoutDemandeCo 1000000 // = 1 seconde
 #define C_timeoutFermerCo 1000000 // = 1 seconde
-#define C_timeoutDemandeFichier 500000 // = 1 seconde
+#define C_timeoutDemandeFichier 100000 // = 0,1 seconde
 
 
 

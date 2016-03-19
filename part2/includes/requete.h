@@ -78,15 +78,26 @@
 */	
 #define R_demandePartieSuivanteFichier 12
 /*
-	Le client demande au serveur de lui envoyer la partie du fichier
-	utilisé si le serveur ne répond pas à R_demandePartieSuivanteFichier
+	Le client demande au serveur de lui envoyer la partie du fichier sans lire la suite du fichier
+	Utilisé si le serveur ne répond pas à R_demandePartieSuivanteFichier
 
 	id obligatoire
 	data non utile
 */
 #define R_redemandePartieFichier 13
 
+/*
+	id non utile
+	data obligatoire, contient une partie du fichier demandé
+*/
 #define R_okPartieSuivanteFichier 1012
+
+/*
+	Indique au client que le serveur à envoyer tout le fichier
+
+	id non utile
+	data non utile
+*/
 #define R_finFichier 1013
 
 /*
@@ -96,6 +107,15 @@
 	data non utile
 */
 #define R_serverPlein 10
+
+
+/*
+	Requete qu'envois le serveur si il reçois un id qui n'est pas définit
+
+	id non utile
+	data non utile
+*/
+#define R_idInexistant 11
 
 
 /* 

@@ -1,5 +1,7 @@
 #include "client.h"
 
+#include <time.h>
+
 int definirTimeOut(int fd, int tempEnMicros){
 	fd_set read_set;
 	struct timeval timeout;
@@ -225,9 +227,13 @@ int demanderFichierAudio(client *cl, char *nomFichier, int *rate, int *size, int
 }
 
 int partieSuivante(client *cl, char *buf){
+	srand(time(NULL));
+
+
+
 	int nbrTentative = 0;
 	int nbrMaxTentative = 5;
-	int erreur;
+	int erreur = 0;
 	char buffer[R_tailleMaxReq];
 
 	freeReq(cl->reqSend);
@@ -238,6 +244,7 @@ int partieSuivante(client *cl, char *buf){
 	do{
 		erreur = sendto(cl->fdSocket, buffer, sizeofReq(cl->reqSend),
 			0, (struct sockaddr*) &(cl->addrSend), sizeof(struct sockaddr_in));
+
 
 		if (erreur < 0){
 			perror("Erreur lors de l'appel à partieSuivante, sendto renvois une erreur");
