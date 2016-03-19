@@ -225,10 +225,6 @@ int demanderFichierAudio(client *cl, char *nomFichier, int *rate, int *size, int
 }
 
 int partieSuivante(client *cl, char *buf){
-	srand(time(NULL));
-
-
-
 	int nbrTentative = 0;
 	int nbrMaxTentative = 5;
 	int erreur = 0;
