@@ -58,13 +58,12 @@ int attendreMsg(server *serv){
 }
 
 
-int accepterConnexion(server *serv){
+int accepterConnexion(server *serv, int idUnique){
 	int erreur = 0;
-	int idUnique = genererIdUnique();
 	char buffer[R_tailleMaxReq];
 	freeReq(serv->reqSend);
 
-	if (idUnique == 0){
+	if (idUnique <= 0){
 		serv->reqSend = createRequete(R_serverPlein, R_idNull, 0, NULL);
 	}else{
 		intToBytes(buffer, idUnique);
@@ -79,12 +78,13 @@ int accepterConnexion(server *serv){
 		perror("Erreur lors de l'envois d'un message d'acceptation de connexion");
 		return -1;
 	}
+
+	if (serv->reqSend->typeReq == R_serverPlein){
+		return -2;
+	}
 	return 0;
 }
 
-int genererIdUnique(){
-	return 999;
-}
 
 void fermerConnexionClient(server *serv,int idClientAEnlever){
 	int erreur = 0;
@@ -94,11 +94,10 @@ void fermerConnexionClient(server *serv,int idClientAEnlever){
 
 	requeteToBytes(buffer, serv->reqSend);
 
-
 	erreur = sendto(serv->fdSocket, buffer,sizeofReq(serv->reqSend),0,
 		(struct sockaddr*) &(serv->addrClient), sizeof(struct sockaddr_in));
 	if (erreur < 0){
-		perror("Erreur lors de l'envois du message fermerConnexionClient");
+		printf("Erreur lors de l'envois du message fermerConnexionClient");
 	}
 }
 
@@ -176,4 +175,15 @@ int finFichier(server *serv){
 		return -1;
 	}
 	return 0;
+}
+
+int definirTimeOut(int fd, int tempEnMicros){
+	fd_set read_set;
+	struct timeval timeout;
+	FD_ZERO(&read_set);
+	FD_SET(fd,&read_set);
+	timeout.tv_sec = 0;
+	timeout.tv_usec = tempEnMicros;
+
+	return select(fd+1,&read_set, NULL,NULL,&timeout);
 }

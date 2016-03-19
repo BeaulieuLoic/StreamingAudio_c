@@ -9,8 +9,11 @@ client cl;
 	prévient le serveur que le client se déconnecte
 */
 void arretClient(int sig){
-	printf("Arret ...\n");
-	fermerConnexion(&cl);
+	if (sig == SIGINT){
+		printf("Arret ...\n");
+		fermerConnexion(&cl);
+		exit(0);
+	}
 }
 
 /*
@@ -51,49 +54,50 @@ int main(int argc, char const *argv[]) {
 			envois d'une requête R_demandeCo
 	*/
 	if(demandeDeConnexion(&cl) < 0){
-		fermerConnexion(&cl);
 		exit(2);
-	}
-	/* 
-		demande au serveur s'il possède le fichier demander
-	*/
-	if(demanderFichierAudio(&cl,fichierARecup, &rate, &size, &channels)<0){
-		fermerConnexion(&cl);
-		exit(3);
-	}
+	}else{
 
-	speaker = aud_writeinit(rate, size, channels);
-	if (speaker < 0){
-		fermerConnexion(&cl);
-		exit(4);
-	}
-
-
-	printf("Lecture du fichier son ...\n");
-	do{
-		/* lecture fichier */
-		lectureWav = partieSuivante(&cl, buf);
-		if (lectureWav == -1){
-			/* fin fichier */
-		}else if (lectureWav < -1){
-			/* autre erreur */
+		/* 
+			demande au serveur s'il possède le fichier demander
+		*/
+		if(demanderFichierAudio(&cl,fichierARecup, &rate, &size, &channels)<0){
 			fermerConnexion(&cl);
-			exit(5);
-		}else{
-			if(write(speaker, buf, lectureWav)<0){
-				perror("Erreur ecriture dans speaker");
-				fermerConnexion(&cl);
-				exit(6);
-			}
+			exit(3);
 		}
-	} while (lectureWav >=0);
-	
-	/* 
-		Fermeture de connexion :
-			envois d'une requète R_fermerCo au serveur
-			libère la mémoire alloué pour l'objet client
- 	*/
-	fermerConnexion(&cl);
+
+		speaker = aud_writeinit(rate, size, channels);
+		if (speaker < 0){
+			fermerConnexion(&cl);
+			exit(4);
+		}
+
+
+		printf("Lecture du fichier son ...\n");
+		do{
+			/* lecture fichier */
+			lectureWav = partieSuivante(&cl, buf);
+			if (lectureWav == -1){
+				/* fin fichier */
+			}else if (lectureWav < -1){
+				/* autre erreur */
+				fermerConnexion(&cl);
+				exit(5);
+			}else{
+				if(write(speaker, buf, lectureWav)<0){
+					perror("Erreur ecriture dans speaker");
+					fermerConnexion(&cl);
+					exit(6);
+				}
+			}
+		} while (lectureWav >=0);
+		
+		/* 
+			Fermeture de connexion :
+				envois d'une requète R_fermerCo au serveur
+				libère la mémoire alloué pour l'objet client
+	 	*/
+		fermerConnexion(&cl);
+	}
 	return 0;
 }
 

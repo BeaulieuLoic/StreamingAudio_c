@@ -53,10 +53,37 @@
 */
 #define R_demanderFicherAudio 3
 
+/*
+	réponse du serveur si le fichier demander à été trouvé 
+
+	id non utile
+	data obligatoire, contient des informations sur le fichier son : fréquence, taille, mono ou stéréo 
+
+*/
 #define R_okDemanderFichierAudio 1003
+
+/*
+	réponse du serveur si le fichier demander n'à pas été trouvé ou n'est pas un fichier son
+
+	id non utile
+	data non utile
+*/	
 #define R_fichierAudioNonTrouver 1004
 
+/*
+	Le client demande au serveur de lui envoyer la suite du fichier
+
+	id obligatoire
+	data non utile
+*/	
 #define R_demandePartieSuivanteFichier 12
+/*
+	Le client demande au serveur de lui envoyer la partie du fichier
+	utilisé si le serveur ne répond pas à R_demandePartieSuivanteFichier
+
+	id obligatoire
+	data non utile
+*/
 #define R_redemandePartieFichier 13
 
 #define R_okPartieSuivanteFichier 1012
@@ -65,18 +92,16 @@
 /*
 	Requete qu'envoi le serveur pour prévenir le client qu'il n'y à plus de place
 
-	id non obligatoire
+	id non utile
 	data non utile
 */
 #define R_serverPlein 10
 
 
-/* Autre constante */
-
 /* 
 	id à mettre lorsqu'il n'à pas été attribué ou n'est pas nécessaire 
 */
-#define R_idNull 0
+#define R_idNull -1
 
 
 
@@ -158,7 +183,7 @@ int copyData(requete* req, char* buf);
 int sizeofReq(requete* req);
 
 /* 
-	Converti les 'sizeof(int)' 1er octet debytes en int
+	Converti les 'sizeof(int)' 1er octet de bytes en int
 */
 int bytesToInt(char* bytes);
 

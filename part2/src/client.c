@@ -84,7 +84,10 @@ int demandeDeConnexion(client *cl){
 				printf("Connexion effectuée\n");
 				return 0;
 			}else if(cl->reqRecv->typeReq == R_serverPlein){
-				perror("Impossible de ce connecter au serveur, le serveur est plein\n");
+				freeReq(cl -> reqRecv);
+				freeReq(cl -> reqSend);
+				close(cl->fdSocket);
+				printf("Impossible de ce connecter au serveur, le serveur est plein\n");
 				return -4;
 			}else{
 				printf("Requète reçu non prévue lors de la demande de connexion : %d",cl->reqRecv->typeReq);
@@ -100,7 +103,6 @@ int demandeDeConnexion(client *cl){
 
 void fermerConnexion(client *cl){
 	arreterConnexion(cl);
-
 	cl->id = 0;
 	freeReq(cl-> reqRecv);
 	freeReq(cl-> reqSend);

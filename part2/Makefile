@@ -7,11 +7,11 @@ OBJDIR = obj/
 INCDIR = includes/
 
 
-$(BINDIR)mainClient: $(OBJDIR)audioclient.o $(OBJDIR)requete.o $(OBJDIR)client.o $(OBJDIR)audio.o
-	$(CC) -o $(BINDIR)mainClient $(OBJDIR)audioclient.o $(OBJDIR)requete.o $(OBJDIR)client.o $(OBJDIR)audio.o
+$(BINDIR)audioclient: $(OBJDIR)audioclient.o $(OBJDIR)requete.o $(OBJDIR)client.o $(OBJDIR)audio.o
+	$(CC) -o $(BINDIR)audioclient $(OBJDIR)audioclient.o $(OBJDIR)requete.o $(OBJDIR)client.o $(OBJDIR)audio.o
 
-$(BINDIR)mainServer: $(OBJDIR)audioserver.o $(OBJDIR)requete.o $(OBJDIR)server.o $(OBJDIR)audio.o
-	$(CC) -o $(BINDIR)mainServer $(OBJDIR)audioserver.o $(OBJDIR)requete.o $(OBJDIR)server.o $(OBJDIR)audio.o
+$(BINDIR)audioserver: $(OBJDIR)audioserver.o $(OBJDIR)requete.o $(OBJDIR)server.o $(OBJDIR)audio.o
+	$(CC) -o $(BINDIR)audioserver $(OBJDIR)audioserver.o $(OBJDIR)requete.o $(OBJDIR)server.o $(OBJDIR)audio.o
 
 $(OBJDIR)audioserver.o: $(SRCDIR)audioserver.c $(OBJDIR)requete.o $(OBJDIR)server.o 
 	$(CC) $(CFLAGS) -c -I $(INCDIR) $(SRCDIR)audioserver.c -o $(OBJDIR)audioserver.o

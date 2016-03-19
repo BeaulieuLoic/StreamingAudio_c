@@ -14,8 +14,5 @@
 
 #define AS_portServer 5000
 
-void arretServeur(int sig);
-
-int ouvertureFichier(char * nomFichier);
-
+int genererIdUnique();
 #endif

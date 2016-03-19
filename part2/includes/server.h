@@ -28,9 +28,7 @@ int initServer(server *serv, int portAUtilise);
 
 void fermerServer(server *serv);
 
-int accepterConnexion(server *serv);
-
-int genererIdUnique();
+int accepterConnexion(server *serv, int idUnique);
 
 void fermerConnexionClient(server *serv,int idClientAEnlever);
 
@@ -43,5 +41,7 @@ int fichierTrouver(server *serv, int rate, int size, int channels);
 int envoyerPartieFichier(server *serv, char *buf, int tailleBuf);
 
 int finFichier(server *serv);
+
+int definirTimeOut(int fd, int tempEnMicros);
 
 #endif
