@@ -13,6 +13,21 @@
 #include <signal.h>
 
 #define AS_portServer 5000
+#define AS_nbrMaxClient 4
 
-int genererIdUnique();
+typedef struct proc
+{
+	pid_t pid;
+	int fdProc;
+	int utiliser;
+} procFork;
+
+void arretServeur(int sig);
+
+int libererId(int idALIberer);
+
+int initListeFork(int fdSocket);
+
+void mainFork(int fdMain, int fdSocket);
+
 #endif

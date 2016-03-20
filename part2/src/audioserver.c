@@ -64,7 +64,7 @@ int main(int argc, char const *argv[]) {
 				
 				break;
 			case R_demanderFicherAudio:
-				 memcpy(nomFichier, serveur.reqRecv->data, serveur.reqRecv->tailleData);
+				memcpy(nomFichier, serveur.reqRecv->data, serveur.reqRecv->tailleData);
 
 				printf("Recherche du fichier %s ...\n",nomFichier);
 				erreur = aud_readinit(nomFichier, &rate, &size, &channels);

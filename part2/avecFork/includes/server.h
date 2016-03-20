@@ -13,14 +13,14 @@
 
 #include "requete.h"
 
-#define S_nbrMaxClient 20
+
+#define S_nbrMaxClient 10
 
 typedef struct serv{
 	struct sockaddr_in addrClient;
 	int fdSocket;
 	requete *reqSend;
 	requete *reqRecv;
-	int listeIdClient[S_nbrMaxClient];
 }server;
 
 

@@ -28,6 +28,9 @@
 */
 #define R_okDemandeCo 1000
 
+#define R_okDemandeCoACK 2000
+
+
 /* 
 	le client informe le serveur qu'il ferme la connection 
 

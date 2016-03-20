@@ -48,7 +48,6 @@ int demandeDeConnexion(client *cl){
 	do{
 		erreur = sendto(cl->fdSocket, buffer, sizeofReq(cl->reqSend),
 			0, (struct sockaddr*) &(cl->addrSend),  sizeof(struct sockaddr_in));
-
 		if (erreur < 0){
 			perror("Erreur lors de l'appel à demandeDeConnexion, sendto renvois une erreur");
 			return -1;
@@ -82,6 +81,7 @@ int demandeDeConnexion(client *cl){
 				id = bytesToInt(cl->reqRecv->data);
 				cl->id = id;
 				printf("Connexion effectuée\n");
+
 				return 0;
 			}else if(cl->reqRecv->typeReq == R_serverPlein){
 				freeReq(cl -> reqRecv);
@@ -225,10 +225,6 @@ int demanderFichierAudio(client *cl, char *nomFichier, int *rate, int *size, int
 }
 
 int partieSuivante(client *cl, char *buf){
-	srand(time(NULL));
-
-
-
 	int nbrTentative = 0;
 	int nbrMaxTentative = 5;
 	int erreur = 0;
