@@ -261,7 +261,7 @@ void mainFork(int fdMain, int fdSocket){
 				Récupère l'adresse client, données envoyer à l'origine
 				par le processus principal
 			*/
-			if(read(fdMain, buf, INET_ADDRSTRLEN)<0{
+			if(read(fdMain, buf, INET_ADDRSTRLEN)<0){
 				perror("Erreur proc enfant lors du read pour récupérer addrClient");
 				exit(1);
 			}
