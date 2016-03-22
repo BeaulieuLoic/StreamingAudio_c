@@ -12,6 +12,9 @@
 #include <netdb.h>
 #include <signal.h>
 
+#include "requete.h"
+#include "audio.h"
+
 #define AS_portServer 5000
 #define AS_nbrMaxClient 2
 
@@ -23,8 +26,6 @@ typedef struct proc
 } procFork;
 
 void arretServeur(int sig);
-
-int libererId(int idALIberer);
 
 int initListeFork(int fdSocket);
 

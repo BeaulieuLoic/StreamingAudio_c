@@ -1,11 +1,11 @@
 #include "requete.h"
 
 
-requete* createRequete(int typeReq, int id,unsigned int tailleData, char *buf){
-	requete* req = malloc(sizeof(requete));
+void initRequete(requete *req,int typeReq, int id,unsigned int tailleData, char *buf){
+	//requete* req = malloc(sizeof(requete));
 	if (req == NULL){
 		perror("Erreur lors de l'appel à initRequete, req est null");
-		return NULL;
+		return;
 	}
 	req -> typeReq = typeReq;
 	req -> id = id;
@@ -13,26 +13,26 @@ requete* createRequete(int typeReq, int id,unsigned int tailleData, char *buf){
 
 	if (req -> tailleData > R_tailleMaxData){
 		req -> tailleData = R_tailleMaxData;
+		printf("Warning lors de createRequeteFromBytes, req -> tailleData >R_tailleMaxData\n");
+	}else if(req -> tailleData < 0){
+		printf("Warning lors de createRequeteFromBytes, req -> tailleData < 0\n");
+		req -> tailleData = 0;
 	}
 
-	if (req -> tailleData == 0){
-		req -> data = NULL;
-	}else{
-		req -> data = malloc(req -> tailleData);
-		copyData(req, buf);
+	if (buf == NULL){
+		req -> tailleData = 0;	
 	}
-	return req;
+	memcpy(req -> data, buf, req -> tailleData);
 }
 
-requete* createRequeteFromBytes(char *bytes){
+void initRequeteFromBytes(requete *req, char *bytes){
 	if (bytes == NULL){
 		perror("Erreur lors de l'appel à initRequeteFromBytes, bytes est null");
-		return NULL;
+		return ;
 	}
-	requete* req = malloc(sizeof(requete));
 	if (req == NULL){
 		perror("Erreur lors de l'appel à initRequeteFromBytes, req est null");
-		return NULL;
+		return ;
 	}
 
 	int tailleInt = sizeof(int);
@@ -40,71 +40,48 @@ requete* createRequeteFromBytes(char *bytes){
 	req -> id = bytesToInt(bytes+tailleInt);
 	req -> tailleData = bytesToInt(bytes+(tailleInt*2));
 	
+
 	if (req -> tailleData > R_tailleMaxData){
 		req -> tailleData = R_tailleMaxData;
-	}
-
-	if (req -> tailleData < 0){
+		printf("Warning lors de createRequeteFromBytes, req -> tailleData >R_tailleMaxData\n");
+	}else if(req -> tailleData < 0){
+		printf("Warning lors de createRequeteFromBytes, req -> tailleData < 0\n");
 		req -> tailleData = 0;
 	}
+	memcpy(req -> data, bytes+(tailleInt*3), req -> tailleData);
 
-	if (req -> tailleData == 0){
-		req -> data = NULL;
-	}else{
-		req -> data = malloc(req -> tailleData);
-		copyData(req, bytes+(tailleInt*3));
-	}
 
-	return req;
+	return ;
 }
 
 void freeReq(requete* req){
 	if (req != NULL){
-		if (req->data != NULL){
-			free(req->data);
-			req->data = NULL;
-		}
 		free(req);
 	}
 }
 
-int copyData(requete *req, char* buf){
-	if (buf == NULL){
-		/* rien à copier */
-	}else if(req == NULL){
-		perror("Erreur lors de l'appel à copyData, req est NULL");
-		return -1;
-	}else if (req -> tailleData != 0){
-		memcpy(req -> data, buf, req -> tailleData);
-	}
-	return 0;
+int sizeofReq(requete req){
+	return sizeof(int)*3+req.tailleData;
 }
 
-int sizeofReq(requete *req){
-	return sizeof(int)*3+req->tailleData;
-}
-
-int requeteToBytes(char *dest, requete *req){
+int requeteToBytes(char *dest, requete req){
 	if (dest == NULL){
 		perror("Erreur lors de l'appel à requeteToBytes, dest est NULL");
-		return -1;
-	}else if(req == NULL){
-		perror("Erreur lors de l'appel à requeteToBytes, req est NULL");
 		return -1;
 	}
 
 	char tmp[sizeof(int)];
 
-	intToBytes(tmp ,req -> typeReq);
+	intToBytes(tmp ,req.typeReq);
 	memcpy(dest, tmp, sizeof(int));
 
-	intToBytes(tmp ,req -> id);
+	intToBytes(tmp ,req.id);
 	memcpy(dest+sizeof(int), tmp, sizeof(int));
 
-	intToBytes(tmp ,req -> tailleData);
+	intToBytes(tmp ,req.tailleData);
 	memcpy(dest+sizeof(int)*2, tmp, sizeof(int));
 
-	memcpy(dest+sizeof(int)*3, req -> data, req -> tailleData);
+	memcpy(dest+sizeof(int)*3, req.data, req.tailleData);
 	
 	return 1;
 

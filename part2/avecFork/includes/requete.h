@@ -9,6 +9,32 @@
 #define R_tailleMaxData 1024
 #define R_tailleMaxReq (sizeof(int)*3+R_tailleMaxData)
 
+/* 
+	type utilisé par le serveur et le client pour communiquer 
+	typeReq : définit quel est le type de requete (ex demande de connection, envoi fichier son ...)
+	Utilisé les constante pour l'initialisé 	
+
+	id : identifiant d'un client permettant au serveur de distinguer les clients
+		chaque id doit etre unique au niveau d'un serveur 
+		si c'est un client sans id attribué ou le serveur son champ doit être égal à R_idNull
+	
+	tailleData : indique la taille du buffer data
+
+	data : correspond au donnée qui seront envoyer tel que le fichier 
+		son par le serveur au client.
+
+	Les attribut du type requete ne sont pas à modifier,
+	il faut passer par les fonctions ci dessous
+*/
+
+typedef struct req {
+	int typeReq;
+	int id;
+	int tailleData;
+	char data[R_tailleMaxData];
+} requete;
+
+
 
 /* Constante pour définir les types de requete */
 
@@ -76,7 +102,8 @@
 	Le client demande au serveur de lui envoyer la suite du fichier
 	La partie data doit contenir le numéros du bloc de fichier permetant ainsi de vérifié si il y à eu une perte de paquet lors de la transmission
 	Si le serveur à le même numéros que celui envoyer par le serveur c'est qu'il y à eu une perte lors de l'envoi serveur->client.
-	Sile serveur à le numéros-1 égal au client, tout c'est bien passer et le serveur envois la suite du fichier
+	Si le serveur à le numéros-1 égal au client, tout c'est bien passer et le serveur envois la suite du fichier
+	Les autre cas ne peut pas arrivé
 
 	id obligatoire
 	data obligatoire
@@ -85,6 +112,8 @@
 
 
 /*
+	Le serveur confirme qu'il à bien reçus la demande de lecture du fichier.
+
 	id non utile
 	data obligatoire, contient une partie du fichier demandé
 */
@@ -123,38 +152,13 @@
 
 
 
-/* 
-	type utilisé par le serveur et le client pour communiquer 
-	typeReq : définit quel est le type de requete (ex demande de connection, envoi fichier son ...)
-	Utilisé les constante pour l'initialisé 	
-
-	id : identifiant d'un client permettant au serveur de distinguer les clients
-		chaque id doit etre unique au niveau d'un serveur 
-		si c'est un client sans id attribué ou le serveur son champ doit être égal à R_idNull
-	
-	tailleData : indique la taille du buffer data
-
-	data : correspond au donnée qui seront envoyer tel que le fichier 
-		son par le serveur au client.
-
-	Les attribut du type requete ne sont pas à modifier,
-	il faut passer par les fonctions ci dessous
-*/
-
-typedef struct req {
-	int typeReq;
-	int id;
-	int tailleData;
-	char *data;
-} requete;
-
 /*
 	créer une requete en l'initialisans avec typeReq, id, tailleData 
 	et le contenu de buf dans data.
 
 	Si tailleData est supérieur à R_tailleMaxData, il est remis à R_tailleMaxData
 */
-requete* createRequete(int typeReq, int id, unsigned int tailleData, char *buf);
+void initRequete(requete *req, int typeReq, int id, unsigned int tailleData, char *buf);
 
 /*
 	créer une requete en l'initialisans en fonction d'une liste d'octet
@@ -172,7 +176,7 @@ requete* createRequete(int typeReq, int id, unsigned int tailleData, char *buf);
 	bytes doit avoir une taille égal ou supérieur à (sizeof(int)*3 + requete->tailleReq)
 	Possibilité d'utilisé la constante R_tailleMaxReq pour être sur d'avoir aucun problème de débordement
 */
-requete* createRequeteFromBytes(char *bytes);
+void initRequeteFromBytes(requete *req, char *bytes);
 
 /*
 	convertie une requète en sa représentation en octet.
@@ -182,7 +186,7 @@ requete* createRequeteFromBytes(char *bytes);
 	Possibilité d'utilisé la constante R_tailleMaxReq pour définir 
 	la taille de dest et être assuré qu'il possède une taille suffisante
 */
-int requeteToBytes(char* dest, requete *reqAConvertir);
+int requeteToBytes(char* dest, requete reqAConvertir);
 
 /*
 	Libère la mémoire d'un objet requete
@@ -198,7 +202,7 @@ int copyData(requete* req, char* buf);
 /*
 	Renvois la taille en octet que devra prendre la requète req
 */
-int sizeofReq(requete* req);
+int sizeofReq(requete req);
 
 /* 
 	Converti les 'sizeof(int)' 1er octet de bytes en int

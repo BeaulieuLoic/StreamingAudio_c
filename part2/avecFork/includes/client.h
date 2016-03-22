@@ -19,8 +19,8 @@ typedef struct cl{
 	struct sockaddr_in addrRecv;
 	int fdSocket;
 	int id;
-	requete *reqSend;
-	requete *reqRecv;	
+	requete reqSend;
+	requete reqRecv;	
 }client;
 
 /* timeout en microseconde */

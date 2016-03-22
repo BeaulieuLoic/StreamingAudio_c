@@ -1,11 +1,8 @@
 #include "audioserver.h"
-#include "server.h"
-#include "audio.h"
 
 #include <time.h> /*random, à enlever !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!*/
 
 procFork listFork[AS_nbrMaxClient];
-server serveur;
 
  
 // Arret du serveur proprement lorsque le signal SIGINT (ctrl + c) est reçu 
@@ -14,7 +11,7 @@ void arretServeur(int sig){
 	int i;
 	if (sig == SIGINT || sig == SIGCHLD){
 		if (sig == SIGCHLD){
-					fprintf(stdout, "\nUn processus enfant est mort\n");
+					fprintf(stdout, "\nUn processus enfant est mort :(\n");
 		}
 
 
@@ -29,8 +26,29 @@ void arretServeur(int sig){
 
 
 int main(int argc, char const *argv[]) {
-	initServer(&serveur,AS_portServer);
-	initListeFork(serveur.fdSocket);
+	int i = 0;
+	struct sockaddr_in addrServeur;
+	struct sockaddr_in addrClient;
+	int fdSocket = socket(AF_INET, SOCK_DGRAM, 0);
+	if (fdSocket < 0){
+		perror("Erreur lors de la création d'une socket");
+		exit(1);
+	}
+
+	addrServeur.sin_family = AF_INET;
+	addrServeur.sin_port = htons(AS_portServer);
+	addrServeur.sin_addr.s_addr = htonl(INADDR_ANY);
+
+	socklen_t addrlen = sizeof(struct sockaddr_in);
+	if(bind(fdSocket, (struct sockaddr *)  &addrServeur,addrlen) < 0){
+		perror("Erreur lors du bind du serveur");
+		close(fdSocket);
+		exit(2);
+	}
+
+	if(initListeFork(fdSocket)<0){
+		exit(3);
+	}
 
 
 	/* Handler lorsque ctrl + c est effectuer */
@@ -46,41 +64,44 @@ int main(int argc, char const *argv[]) {
 	sigemptyset (&arretSigCHLD.sa_mask);
 	arretSigCHLD.sa_flags = 0;
 	sigaction(SIGCHLD, &arretSigCHLD, NULL);
+	
 
 	int placeLibre = -1;
-	int typeReq = 0;
-	char buf[R_tailleMaxReq];
+	
 	char tmp[sizeof(int)];
+	memset(tmp,0,sizeof(int));
+
+
+	char adrClient[INET_ADDRSTRLEN];
+	memset(adrClient,0,INET_ADDRSTRLEN);
+
+	char buf[R_tailleMaxReq];
+	memset(buf,0,R_tailleMaxReq);
+
 	int tailleMsg = 0;
-	int i = 0;
+	
 	int id = -1;
+
 	char * port = NULL;
 
-	requete *req = NULL;
+	requete req;
 
 	while(1){
+
 		socklen_t fromlen = sizeof(struct sockaddr_in);
-		tailleMsg = recvfrom(serveur.fdSocket,buf,R_tailleMaxReq,0, 
-				(struct sockaddr*) &(serveur.addrClient),&fromlen);
+		tailleMsg = recvfrom(fdSocket,buf,R_tailleMaxReq,0, 
+				(struct sockaddr*) &(addrClient),&fromlen);
 		if (tailleMsg < 0){
 			perror("Erreur lors de la reception d'un message");
 			exit(1);
 		}
 
-
-
-
-		/*
-			Récupération du type de la requète se trouvant forcément
-			entre [0, sizeof(int)[ de buf
-		*/
-		typeReq = bytesToInt(buf);
 		id = bytesToInt(buf+sizeof(int));
-		freeReq(req);
-		req = createRequeteFromBytes(buf);
+		
+		initRequeteFromBytes(&req,buf);
 
 
-		switch(typeReq){
+		switch(req.typeReq){
 
 			case R_demandeCo:
 				printf("demande de connexion ...\n");
@@ -96,13 +117,13 @@ int main(int argc, char const *argv[]) {
 					printf("Connexion accepter, id : %d \n",placeLibre);
 
 					// Converti l'adresse ip du client en bytes pour l'envoyer au processus qui va s'occuper du client
-					char adrClient[INET_ADDRSTRLEN];
-					inet_ntop(AF_INET, &(serveur.addrClient.sin_addr), adrClient, INET_ADDRSTRLEN);
-					write(listFork[placeLibre].fdProc, adrClient,INET_ADDRSTRLEN);
+					
+					inet_ntop(AF_INET, &(addrClient.sin_addr), adrClient, INET_ADDRSTRLEN);
+					write(listFork[placeLibre].fdProc, adrClient, INET_ADDRSTRLEN);
 
 
 					// Converti le num de port en bytes pour l'envoyer au processus qui va s'occuper du client
-					port = (void *)(&serveur.addrClient.sin_port);
+					port = (void *)(&addrClient.sin_port);
 					write(listFork[placeLibre].fdProc, port,sizeof(unsigned short));
 
 					// Envoi la taille de la requète au processus fils
@@ -116,11 +137,10 @@ int main(int argc, char const *argv[]) {
 				}else{
 					// Plus de place
 					printf("Connexion refusé.\n");
-					freeReq(req);
-					req = createRequete(R_serverPlein, R_idNull, 0, NULL);
+					initRequete(&req, R_serverPlein, R_idNull, 0, NULL);
 					requeteToBytes(buf, req);
-					if(sendto(serveur.fdSocket, buf,sizeofReq(req),0,
-						(struct sockaddr*) &(serveur.addrClient), sizeof(struct sockaddr_in)) < 0){
+					if(sendto(fdSocket, buf,sizeofReq(req),0,
+						(struct sockaddr*) &(addrClient), sizeof(struct sockaddr_in)) < 0){
 					}
 					
 				}
@@ -131,7 +151,7 @@ int main(int argc, char const *argv[]) {
 					/*
 						Convertie le num de port en bytes pour l'envoyer au processus
 					*/
-					port = (void *)(&serveur.addrClient.sin_port);
+					port = (void *)(&addrClient.sin_port);
 					write(listFork[id].fdProc, port,sizeof(unsigned short));
 
 					// Envoi la taille de la requète au processus fils
@@ -143,13 +163,12 @@ int main(int argc, char const *argv[]) {
 					write(listFork[id].fdProc, buf,sizeofReq(req));
 					listFork[id].utiliser = 0;
 				}else{
-					// Erreur id
+					// Erreur id non attribué
 					printf("Erreur id non attribué :%d\n", id);
-					freeReq(req);
-					req = createRequete(R_idInexistant, R_idNull, 0, NULL);
+					initRequete(&req, R_idInexistant, R_idNull, 0, NULL);
 					requeteToBytes(buf, req);
-					if(sendto(serveur.fdSocket, buf,sizeofReq(req),0,
-						(struct sockaddr*) &(serveur.addrClient), sizeof(struct sockaddr_in)) < 0){
+					if(sendto(fdSocket, buf,sizeofReq(req),0,
+						(struct sockaddr*) &(addrClient), sizeof(struct sockaddr_in)) < 0){
 					}
 				}
 
@@ -163,7 +182,7 @@ int main(int argc, char const *argv[]) {
 					/*
 						Convertie le num de port en bytes pour l'envoyer au processus
 					*/
-					port = (void *)(&serveur.addrClient.sin_port);
+					port = (void *)(&addrClient.sin_port);
 					write(listFork[id].fdProc, port,sizeof(unsigned short));
 
 					// Envoi la taille de la requète au processus fils
@@ -174,18 +193,18 @@ int main(int argc, char const *argv[]) {
 					requeteToBytes(buf,req);
 					write(listFork[id].fdProc, buf,sizeofReq(req));
 				}else{
-					// Erreur id
+					// Erreur id non attribué
 					printf("Erreur id non attribué :%d\n", id);
-					freeReq(req);
-					req = createRequete(R_idInexistant, R_idNull, 0, NULL);
+					initRequete(&req, R_idInexistant, R_idNull, 0, NULL);
 					requeteToBytes(buf, req);
-					if(sendto(serveur.fdSocket, buf,sizeofReq(req),0,
-						(struct sockaddr*) &(serveur.addrClient), sizeof(struct sockaddr_in)) < 0){
+					if(sendto(fdSocket, buf,sizeofReq(req),0,
+						(struct sockaddr*) &(addrClient), sizeof(struct sockaddr_in)) < 0){
 					}
 				}
 				break;
 		}
 	}
+	perror("Erreur, while(true) arreté\n");
 	return 0;
 }
 
@@ -223,7 +242,7 @@ void mainFork(int fdMain, int fdSocket){
 	int rate, size, channels;
 	int lectureWav = -1;
 
-	requete *req = NULL;
+	requete req;
 
 	char buf[R_tailleMaxReq];
 
@@ -242,7 +261,10 @@ void mainFork(int fdMain, int fdSocket){
 				Récupère l'adresse client, données envoyer à l'origine
 				par le processus principal
 			*/
-			read(fdMain, buf, INET_ADDRSTRLEN);
+			if(read(fdMain, buf, INET_ADDRSTRLEN)<0{
+				perror("Erreur proc enfant lors du read pour récupérer addrClient");
+				exit(1);
+			}
 			inet_pton(AF_INET, buf, &(addrClient.sin_addr));
 			
 			blocFichierAct = -1;
@@ -250,12 +272,19 @@ void mainFork(int fdMain, int fdSocket){
 		}
 
 		// Récupère le numéros de port que le processus devra utilisé pour comuniquer avec le client
-		read(fdMain, buf, sizeof(unsigned short));
+		if(read(fdMain, buf, sizeof(unsigned short))){
+			perror("Erreur proc enfant lors du read pour récupérer port");
+			exit(1);
+		}
+		
 		unsigned short *port = (void *) buf;
 		addrClient.sin_port = *port;
 
 
-		read(fdMain, buf, sizeof(int));
+		if(read(fdMain, buf, sizeof(int)) < 0){
+			perror("Erreur proc enfant lors du read pour récupérer tailleReq");
+			exit(1);
+		}	
 		tailleReq = bytesToInt(buf);
 
 		//Récupère la requète envoyer par le client, relayé via le processus principal
@@ -263,24 +292,22 @@ void mainFork(int fdMain, int fdSocket){
 
 
 		// Convertie buf en requète
-		freeReq(req);
-		req = createRequeteFromBytes(buf);
-		//printf("fork %d:typeReq : %d, id : %d , tailleData %d\n",idFork,req->typeReq,req->id,req->tailleData);
-		switch(req->typeReq){
+		initRequeteFromBytes(&req,buf);
+		//printf("fork %d:typeReq : %d, id : %d , tailleData %d\n",idFork,req.typeReq,req.id,req.tailleData);
+		switch(req.typeReq){
 
 			// ################################################### Accepter connexion ###################################################
 			case R_demandeCo:
 				if (!occuper)
 				{
-					freeReq(req);
 					intToBytes(buf, idFork);
 					// Envoi une confirmation au client que le serveur à bien reçus la demande de connexion
-					req = createRequete(R_okDemandeCo, R_idNull, sizeof(int), buf);
+					initRequete(&req,R_okDemandeCo, R_idNull, sizeof(int), buf);
 					requeteToBytes(buf,req);
 
 					if(sendto(fdSocket, buf,sizeofReq(req),0,
 							(struct sockaddr*) &(addrClient), sizeof(struct sockaddr_in))< 0){
-						perror("Erreur envoi R_okDemandeCo");
+						perror("Erreur proc enfant envoi R_okDemandeCo");
 						exit(1);
 					}
 					occuper = 1;
@@ -294,13 +321,12 @@ void mainFork(int fdMain, int fdSocket){
 			case R_fermerCo:
 				close(fdFichierAudio);
 				occuper = 0;
-				freeReq(req);
 				// Envoi d'une requète au client pour confirmer que le serveur à bien reçus la fermeture de connexion
-				req = createRequete(R_okFermerCo, R_idNull, 0, NULL);
+				initRequete(&req,R_okFermerCo, R_idNull, 0, NULL);
 				requeteToBytes(buf, req);
 				if(sendto(fdSocket, buf,sizeofReq(req),0,
 						(struct sockaddr*) &(addrClient), sizeof(struct sockaddr_in)) < 0){
-					perror("Erreur lors de l'envois du message fermerConnexionClient");
+					perror("Erreur proc enfant lors de l'envois du message fermerConnexionClient");
 					exit(2);
 				}
 
@@ -309,17 +335,16 @@ void mainFork(int fdMain, int fdSocket){
 			// ################################################### Envoi info fichier ###################################################
 			case R_demanderFicherAudio:
 				// Vérifie que le fichier existe, qu'il s'agis bien d'un fichier audio et récupération les info du fichier audio
-				err = aud_readinit(req->data, &rate, &size, &channels);
-				fdFichierAudio = open(req->data,O_RDONLY);
-				freeReq(req);
+				err = aud_readinit(req.data, &rate, &size, &channels);
+				fdFichierAudio = open(req.data,O_RDONLY);
 				if (err < 0 || fdFichierAudio < 0){
 					// Le fichier n'existe pas ou n'est pas un fichier audio
-					req = createRequete(R_fichierAudioNonTrouver, R_idNull,0, NULL);
+					initRequete(&req,R_fichierAudioNonTrouver, R_idNull,0, NULL);
 					requeteToBytes(buf, req);
 
 					if (sendto(fdSocket, buf,sizeofReq(req), 0, (struct sockaddr*) &(addrClient), 
 								sizeof(struct sockaddr_in)) < 0){
-						perror("Erreur lors de l'envois du message fichierNonTrouver");
+						perror("Erreur proc enfant lors de l'envois du message fichierNonTrouver");
 						exit(3);
 					}
 					printf("Fichier non trouvé\n");
@@ -329,12 +354,12 @@ void mainFork(int fdMain, int fdSocket){
 					intToBytes(buf+sizeof(int), size);
 					intToBytes(buf+sizeof(int)*2, channels);
 
-					req = createRequete(R_okDemanderFichierAudio, R_idNull,sizeof(int)*3, buf);
+					initRequete(&req, R_okDemanderFichierAudio, R_idNull,sizeof(int)*3, buf);
 					requeteToBytes(buf, req);
 					
 					if (sendto(fdSocket, buf,sizeofReq(req), 0, (struct sockaddr*) &(addrClient), 
 								sizeof(struct sockaddr_in)) < 0){
-						perror("Erreur lors de l'envois du message fichierTrouver");
+						perror("Erreur proc enfant lors de l'envois du message fichierTrouver");
 						exit(3);
 					}
 					printf("Fichier trouvé\n");
@@ -343,20 +368,19 @@ void mainFork(int fdMain, int fdSocket){
 			// ################################################### Lecture partie suivante ###################################################
 			case R_demandePartieSuivanteFichier:
 				if (fdFichierAudio < 0){
-					freeReq(req);
 					// Problème, le client demande le fichier sans avoir donnée d'abord le nom du fichier
-					req = createRequete(R_fichierAudioNonTrouver, R_idNull,0, NULL);
+					initRequete(&req, R_fichierAudioNonTrouver, R_idNull,0, NULL);
 					requeteToBytes(buf, req);
 
 					if (sendto(fdSocket, buf,sizeofReq(req), 0, (struct sockaddr*) &(addrClient), 
 								sizeof(struct sockaddr_in)) < 0){
-						perror("Erreur lors de l'envois du message fichierNonTrouver");
+						perror("Erreur proc enfant lors de l'envois du message fichierNonTrouver");
 						exit(3);
 					}
 				}else{
-					// Si blocFichierAct == bytesToInt(req->data)
+					// Si blocFichierAct == bytesToInt(req.data)
 					// cela signifie que le client à déja envoyer un paquet mais qu'il à été perdu
-					if (blocFichierAct != bytesToInt(req->data)){
+					if (blocFichierAct != bytesToInt(req.data)){
 						lectureWav = read(fdFichierAudio, buf, R_tailleMaxData);
 						if (lectureWav < 0){
 							perror("Erreur ");
@@ -364,25 +388,23 @@ void mainFork(int fdMain, int fdSocket){
 						blocFichierAct++;
 					}
 					if (lectureWav > 0){
-						freeReq(req);
 						// Envoi d'une partie du fichier au client
-						req = createRequete(R_okPartieSuivanteFichier, R_idNull, lectureWav, buf);
+						initRequete(&req, R_okPartieSuivanteFichier, R_idNull, lectureWav, buf);
 						requeteToBytes(buf, req);
 
 						if (sendto(fdSocket, buf,sizeofReq(req), 0, (struct sockaddr*) &(addrClient), 
 									sizeof(struct sockaddr_in)) < 0){
-							perror("Erreur lors de l'envois du message R_okPartieSuivanteFichier");
+							perror("Erreur proc enfant lors de l'envois du message R_okPartieSuivanteFichier");
 							exit(3);
 						}
 					}else{
-						freeReq(req);
 						// Le fichier à été entièrement lu
-						req = createRequete(R_finFichier, R_idNull, 0, NULL);
+						initRequete(&req, R_finFichier, R_idNull, 0, NULL);
 						requeteToBytes(buf, req);
 
 						if (sendto(fdSocket, buf,sizeofReq(req), 0, (struct sockaddr*) &(addrClient), 
 									sizeof(struct sockaddr_in)) < 0){
-							perror("Erreur lors de l'envois du message R_okPartieSuivanteFichier");
+							perror("Erreur proc enfant lors de l'envois du message R_okPartieSuivanteFichier");
 							exit(3);
 						}
 					}
@@ -390,14 +412,13 @@ void mainFork(int fdMain, int fdSocket){
 				break;
 
 			default:
-				printf("Type de requete non prévue : %d\n", req->typeReq);
+				printf("Type de requete non prévue : %d\n", req.typeReq);
 				break;
 		}
 	}
-	freeReq(req);
 	close(fdMain);
 	close(fdSocket);
 
-	printf("Erreur\n");
+	perror("Erreur proc enfant, while(true) arreté\n");
 	exit(0);
 }
