@@ -21,6 +21,7 @@ void arretServeur(int sig){
 		fprintf(stdout, "Arret du serveur ...\n\n");
 		for (i = 0; i < AS_nbrMaxClient; ++i){
 			kill(listFork[i].pid, SIGKILL);
+			close(listFork[i].fdProc);
 		}
 		exit(0);
 	}
@@ -55,6 +56,8 @@ int main(int argc, char const *argv[]) {
 	int id = -1;
 	char * port = NULL;
 
+	requete *req = NULL;
+
 	while(1){
 		socklen_t fromlen = sizeof(struct sockaddr_in);
 		tailleMsg = recvfrom(serveur.fdSocket,buf,R_tailleMaxReq,0, 
@@ -64,11 +67,19 @@ int main(int argc, char const *argv[]) {
 			exit(1);
 		}
 
+
+
+
 		/*
 			Récupération du type de la requète se trouvant forcément
 			entre [0, sizeof(int)[ de buf
 		*/
 		typeReq = bytesToInt(buf);
+		id = bytesToInt(buf+sizeof(int));
+		freeReq(req);
+		req = createRequeteFromBytes(buf);
+
+
 		switch(typeReq){
 
 			case R_demandeCo:
@@ -95,35 +106,51 @@ int main(int argc, char const *argv[]) {
 					write(listFork[placeLibre].fdProc, port,sizeof(unsigned short));
 
 					// Envoi la taille de la requète au processus fils
-					intToBytes(tmp, tailleMsg);
+					intToBytes(tmp, sizeofReq(req));
 					write(listFork[placeLibre].fdProc, tmp, sizeof(int));
 
 					
+					requeteToBytes(buf,req);
 					// Envois la requète du client au processus secondaire qui va la traité
-					write(listFork[placeLibre].fdProc, buf,tailleMsg);
+					write(listFork[placeLibre].fdProc, buf,sizeofReq(req));
 				}else{
 					// Plus de place
 					printf("Connexion refusé.\n");
+					freeReq(req);
+					req = createRequete(R_serverPlein, R_idNull, 0, NULL);
+					requeteToBytes(buf, req);
+					if(sendto(serveur.fdSocket, buf,sizeofReq(req),0,
+						(struct sockaddr*) &(serveur.addrClient), sizeof(struct sockaddr_in)) < 0){
+					}
+					
 				}
-
+				placeLibre = -1;
 				break;
 			case R_fermerCo:
-				if ((id >= 0 || id < AS_nbrMaxClient) && listFork[i].utiliser){
+				if ((id >= 0 || id < AS_nbrMaxClient) && listFork[id].utiliser){
 					/*
 						Convertie le num de port en bytes pour l'envoyer au processus
 					*/
 					port = (void *)(&serveur.addrClient.sin_port);
-					write(listFork[placeLibre].fdProc, port,sizeof(unsigned short));
+					write(listFork[id].fdProc, port,sizeof(unsigned short));
 
 					// Envoi la taille de la requète au processus fils
-					intToBytes(tmp, tailleMsg);
-					write(listFork[placeLibre].fdProc, tmp, sizeof(int));
+					intToBytes(tmp, sizeofReq(req));
+					write(listFork[id].fdProc, tmp, sizeof(int));
 
 
-					write(listFork[id].fdProc, buf,tailleMsg);
+					requeteToBytes(buf,req);
+					write(listFork[id].fdProc, buf,sizeofReq(req));
 					listFork[id].utiliser = 0;
 				}else{
 					// Erreur id
+					printf("Erreur id non attribué :%d\n", id);
+					freeReq(req);
+					req = createRequete(R_idInexistant, R_idNull, 0, NULL);
+					requeteToBytes(buf, req);
+					if(sendto(serveur.fdSocket, buf,sizeofReq(req),0,
+						(struct sockaddr*) &(serveur.addrClient), sizeof(struct sockaddr_in)) < 0){
+					}
 				}
 
 				break;
@@ -132,23 +159,29 @@ int main(int argc, char const *argv[]) {
 					Accède à l'id du client qui se trouve forcément
 					dans l'interval [sizeof(int), sizeof(int)[ de buf
 				*/
-				id = bytesToInt(buf+sizeof(int));
-
-				if ((id >= 0 || id < AS_nbrMaxClient) && listFork[i].utiliser){
+				if ((id >= 0 || id < AS_nbrMaxClient) && listFork[id].utiliser){
 					/*
 						Convertie le num de port en bytes pour l'envoyer au processus
 					*/
 					port = (void *)(&serveur.addrClient.sin_port);
-					write(listFork[placeLibre].fdProc, port,sizeof(unsigned short));
+					write(listFork[id].fdProc, port,sizeof(unsigned short));
 
 					// Envoi la taille de la requète au processus fils
-					intToBytes(tmp, tailleMsg);
-					write(listFork[placeLibre].fdProc, tmp, sizeof(int));
+					intToBytes(tmp, sizeofReq(req));
+					write(listFork[id].fdProc, tmp, sizeof(int));
 
 
-					write(listFork[id].fdProc, buf,tailleMsg);
+					requeteToBytes(buf,req);
+					write(listFork[id].fdProc, buf,sizeofReq(req));
 				}else{
 					// Erreur id
+					printf("Erreur id non attribué :%d\n", id);
+					freeReq(req);
+					req = createRequete(R_idInexistant, R_idNull, 0, NULL);
+					requeteToBytes(buf, req);
+					if(sendto(serveur.fdSocket, buf,sizeofReq(req),0,
+						(struct sockaddr*) &(serveur.addrClient), sizeof(struct sockaddr_in)) < 0){
+					}
 				}
 				break;
 		}
@@ -200,17 +233,20 @@ void mainFork(int fdMain, int fdSocket){
 	read(fdMain, buf, sizeof(int));
 	int idFork = bytesToInt(buf);
 	int tailleReq = 0;
+
+	int blocFichierAct = -1;
 	
 	while (1){
 		if (!occuper){
 			/* 
 				Récupère l'adresse client, données envoyer à l'origine
-				par le processus principal pour indiquer l'adresse du client
+				par le processus principal
 			*/
 			read(fdMain, buf, INET_ADDRSTRLEN);
 			inet_pton(AF_INET, buf, &(addrClient.sin_addr));
 			
-			occuper = 1;
+			blocFichierAct = -1;
+
 		}
 
 		// Récupère le numéros de port que le processus devra utilisé pour comuniquer avec le client
@@ -218,36 +254,47 @@ void mainFork(int fdMain, int fdSocket){
 		unsigned short *port = (void *) buf;
 		addrClient.sin_port = *port;
 
+
 		read(fdMain, buf, sizeof(int));
 		tailleReq = bytesToInt(buf);
 
 		//Récupère la requète envoyer par le client, relayé via le processus principal
 		read(fdMain, buf, tailleReq);
-		
+
 
 		// Convertie buf en requète
 		freeReq(req);
 		req = createRequeteFromBytes(buf);
+		//printf("fork %d:typeReq : %d, id : %d , tailleData %d\n",idFork,req->typeReq,req->id,req->tailleData);
 		switch(req->typeReq){
 
 			// ################################################### Accepter connexion ###################################################
-			case R_demandeCo:			
-				freeReq(req);
-				intToBytes(buf, idFork);
-				// Envoi une confirmation au client que le serveur à bien reçus la demande de connexion
-				req = createRequete(R_okDemandeCo, R_idNull, sizeof(int), buf);
-				requeteToBytes(buf,req);
-				if(sendto(fdSocket, buf,sizeofReq(req),0,
-						(struct sockaddr*) &(addrClient), sizeof(struct sockaddr_in))< 0){
-					perror("Erreur envoi R_okDemandeCo");
-					exit(1);
-				}
+			case R_demandeCo:
+				if (!occuper)
+				{
+					freeReq(req);
+					intToBytes(buf, idFork);
+					// Envoi une confirmation au client que le serveur à bien reçus la demande de connexion
+					req = createRequete(R_okDemandeCo, R_idNull, sizeof(int), buf);
+					requeteToBytes(buf,req);
+
+					if(sendto(fdSocket, buf,sizeofReq(req),0,
+							(struct sockaddr*) &(addrClient), sizeof(struct sockaddr_in))< 0){
+						perror("Erreur envoi R_okDemandeCo");
+						exit(1);
+					}
+					occuper = 1;
+				}else{
+					// Erreur, le processus à reçus une demande de connexion alors qu'il s'occupe déja d'un autre client
+
+				}		
 				break;
 
 			// ################################################### ferme la connexion d'un client ###################################################	
 			case R_fermerCo:
 				close(fdFichierAudio);
 				occuper = 0;
+				freeReq(req);
 				// Envoi d'une requète au client pour confirmer que le serveur à bien reçus la fermeture de connexion
 				req = createRequete(R_okFermerCo, R_idNull, 0, NULL);
 				requeteToBytes(buf, req);
@@ -272,8 +319,8 @@ void mainFork(int fdMain, int fdSocket){
 
 					if (sendto(fdSocket, buf,sizeofReq(req), 0, (struct sockaddr*) &(addrClient), 
 								sizeof(struct sockaddr_in)) < 0){
-							perror("Erreur lors de l'envois du message fichierNonTrouver");
-							exit(3);
+						perror("Erreur lors de l'envois du message fichierNonTrouver");
+						exit(3);
 					}
 					printf("Fichier non trouvé\n");
 				}else{
@@ -287,46 +334,56 @@ void mainFork(int fdMain, int fdSocket){
 					
 					if (sendto(fdSocket, buf,sizeofReq(req), 0, (struct sockaddr*) &(addrClient), 
 								sizeof(struct sockaddr_in)) < 0){
-							perror("Erreur lors de l'envois du message fichierTrouver");
-							exit(3);
+						perror("Erreur lors de l'envois du message fichierTrouver");
+						exit(3);
 					}
 					printf("Fichier trouvé\n");
 				}
 				break;
 			// ################################################### Lecture partie suivante ###################################################
 			case R_demandePartieSuivanteFichier:
-				freeReq(req);
 				if (fdFichierAudio < 0){
+					freeReq(req);
 					// Problème, le client demande le fichier sans avoir donnée d'abord le nom du fichier
 					req = createRequete(R_fichierAudioNonTrouver, R_idNull,0, NULL);
 					requeteToBytes(buf, req);
 
 					if (sendto(fdSocket, buf,sizeofReq(req), 0, (struct sockaddr*) &(addrClient), 
 								sizeof(struct sockaddr_in)) < 0){
-							perror("Erreur lors de l'envois du message fichierNonTrouver");
-							exit(3);
+						perror("Erreur lors de l'envois du message fichierNonTrouver");
+						exit(3);
 					}
 				}else{
-					lectureWav = read(fdFichierAudio, buf, R_tailleMaxData);
+					// Si blocFichierAct == bytesToInt(req->data)
+					// cela signifie que le client à déja envoyer un paquet mais qu'il à été perdu
+					if (blocFichierAct != bytesToInt(req->data)){
+						lectureWav = read(fdFichierAudio, buf, R_tailleMaxData);
+						if (lectureWav < 0){
+							perror("Erreur ");
+						}
+						blocFichierAct++;
+					}
 					if (lectureWav > 0){
+						freeReq(req);
 						// Envoi d'une partie du fichier au client
 						req = createRequete(R_okPartieSuivanteFichier, R_idNull, lectureWav, buf);
 						requeteToBytes(buf, req);
 
 						if (sendto(fdSocket, buf,sizeofReq(req), 0, (struct sockaddr*) &(addrClient), 
 									sizeof(struct sockaddr_in)) < 0){
-								perror("Erreur lors de l'envois du message R_okPartieSuivanteFichier");
-								exit(3);
+							perror("Erreur lors de l'envois du message R_okPartieSuivanteFichier");
+							exit(3);
 						}
 					}else{
+						freeReq(req);
 						// Le fichier à été entièrement lu
 						req = createRequete(R_finFichier, R_idNull, 0, NULL);
 						requeteToBytes(buf, req);
 
 						if (sendto(fdSocket, buf,sizeofReq(req), 0, (struct sockaddr*) &(addrClient), 
 									sizeof(struct sockaddr_in)) < 0){
-								perror("Erreur lors de l'envois du message R_okPartieSuivanteFichier");
-								exit(3);
+							perror("Erreur lors de l'envois du message R_okPartieSuivanteFichier");
+							exit(3);
 						}
 					}
 				}
@@ -340,5 +397,7 @@ void mainFork(int fdMain, int fdSocket){
 	freeReq(req);
 	close(fdMain);
 	close(fdSocket);
+
+	printf("Erreur\n");
 	exit(0);
 }

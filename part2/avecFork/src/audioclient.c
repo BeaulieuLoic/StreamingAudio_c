@@ -33,8 +33,10 @@ int main(int argc, char const *argv[]) {
 	int lectureWav = -1;
 	char buf[R_tailleMaxData];
 
+	int partFichier = -1;
+
 	if (argc < 3){
-		printf("nombre d'argument invalide %d\n",argc);
+		printf("nombre d'argument invalide.\n");
 		exit(1);
 	}
 	char * adresseServ =  (char *) argv[1];
@@ -75,7 +77,8 @@ int main(int argc, char const *argv[]) {
 		printf("Lecture du fichier son ...\n");
 		do{
 			/* lecture fichier */
-			lectureWav = partieSuivante(&cl, buf);
+			partFichier++;
+			lectureWav = partieSuivante(&cl, buf, partFichier);
 			if (lectureWav == -1){
 				/* fin fichier */
 			}else if (lectureWav < -1){

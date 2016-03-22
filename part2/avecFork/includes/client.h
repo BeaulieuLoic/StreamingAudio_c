@@ -41,6 +41,6 @@ void arreterConnexion(client *cl);
 
 int demanderFichierAudio(client *cl, char *nomFichier, int *rate, int *size, int *channels);
 
-int partieSuivante(client *cl, char *buf);
+int partieSuivante(client *cl, char *buf, int partFichier);
 
 #endif

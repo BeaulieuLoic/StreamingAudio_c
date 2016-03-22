@@ -74,19 +74,15 @@
 
 /*
 	Le client demande au serveur de lui envoyer la suite du fichier
+	La partie data doit contenir le numéros du bloc de fichier permetant ainsi de vérifié si il y à eu une perte de paquet lors de la transmission
+	Si le serveur à le même numéros que celui envoyer par le serveur c'est qu'il y à eu une perte lors de l'envoi serveur->client.
+	Sile serveur à le numéros-1 égal au client, tout c'est bien passer et le serveur envois la suite du fichier
 
 	id obligatoire
-	data non utile
+	data obligatoire
 */	
 #define R_demandePartieSuivanteFichier 12
-/*
-	Le client demande au serveur de lui envoyer la partie du fichier sans lire la suite du fichier
-	Utilisé si le serveur ne répond pas à R_demandePartieSuivanteFichier
 
-	id obligatoire
-	data non utile
-*/
-#define R_redemandePartieFichier 13
 
 /*
 	id non utile

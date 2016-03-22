@@ -224,14 +224,17 @@ int demanderFichierAudio(client *cl, char *nomFichier, int *rate, int *size, int
 	return -5;
 }
 
-int partieSuivante(client *cl, char *buf){
+int partieSuivante(client *cl, char *buf, int partFichier){
 	int nbrTentative = 0;
 	int nbrMaxTentative = 5;
 	int erreur = 0;
 	char buffer[R_tailleMaxReq];
 
 	freeReq(cl->reqSend);
-	cl->reqSend = createRequete(R_demandePartieSuivanteFichier, cl->id, 0, NULL);
+
+	intToBytes(buffer, partFichier);
+
+	cl->reqSend = createRequete(R_demandePartieSuivanteFichier, cl->id, sizeof(int), buffer);
 	requeteToBytes(buffer,cl->reqSend);
 
 
@@ -253,7 +256,7 @@ int partieSuivante(client *cl, char *buf){
 		}else if(erreur == 0){
 			nbrTentative++;
 			freeReq(cl->reqSend);
-			cl->reqSend = createRequete(R_redemandePartieFichier, cl->id, 0, NULL);
+			cl->reqSend = createRequete(R_demandePartieSuivanteFichier, cl->id, sizeof(int), buffer);
 			requeteToBytes(buffer,cl->reqSend);
 			//printf("Le serveur ne répond pas, tentative n°%d\n", nbrTentative);
 		}else{/* si le serveur à reçu la demande de connexion */

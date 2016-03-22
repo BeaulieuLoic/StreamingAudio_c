@@ -13,7 +13,7 @@
 #include <signal.h>
 
 #define AS_portServer 5000
-#define AS_nbrMaxClient 4
+#define AS_nbrMaxClient 2
 
 typedef struct proc
 {
