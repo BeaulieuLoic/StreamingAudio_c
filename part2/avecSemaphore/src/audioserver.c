@@ -54,7 +54,6 @@ void arretServeur(int sig){
 
 
 int main(int argc, char const *argv[]) {
-	// Initialisation des pid des futur processus à 1
 	int i;
 
 	// Initialisation du serveur
