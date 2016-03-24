@@ -15,11 +15,17 @@
 #include <netdb.h>
 #include <signal.h>
 
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <sys/sem.h>
+
+
+
 #include "requete.h"
 #include "audio.h"
 
 #define AS_portServer 5000
-#define AS_nbrMaxClient 5
+#define AS_nbrMaxClient 50
 
 
 
