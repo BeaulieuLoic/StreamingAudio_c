@@ -1,7 +1,5 @@
 #include "audioserver.h"
 
-#define DOWN (semop(idSemaphore,&down,1))
-#define UP (semop(idSemaphore,&up,1))
 
 // Liste des processus enfant qui vont s'occuper des clients
 // variable global pour permetre au handler de fermer la socket 
