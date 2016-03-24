@@ -11,6 +11,7 @@ client cl;
 void arretClient(int sig){
 	if (sig == SIGINT){
 		printf("Arret ...\n");
+		printf("Fermeture de connexion ...\n");
 		fermerConnexion(&cl);
 		exit(0);
 	}
@@ -33,8 +34,10 @@ int main(int argc, char const *argv[]) {
 	int lectureWav = -1;
 	char buf[R_tailleMaxData];
 
+	int partFichier = -1;
+
 	if (argc < 3){
-		printf("nombre d'argument invalide %d\n",argc);
+		printf("nombre d'argument invalide.\n");
 		exit(1);
 	}
 	char * adresseServ =  (char *) argv[1];
@@ -53,6 +56,7 @@ int main(int argc, char const *argv[]) {
 		demande de connexion auprès du serveur :
 			envois d'une requête R_demandeCo
 	*/
+
 	if(demandeDeConnexion(&cl) < 0){
 		exit(2);
 	}else{
@@ -60,13 +64,19 @@ int main(int argc, char const *argv[]) {
 		/* 
 			demande au serveur s'il possède le fichier demander
 		*/
+		printf("Demande de fichier : %s ...\n",fichierARecup);
 		if(demanderFichierAudio(&cl,fichierARecup, &rate, &size, &channels)<0){
+			printf("Fermeture de connexion ...\n");
 			fermerConnexion(&cl);
 			exit(3);
 		}
 
+		/*
+			Récupération d'un descripteur de fichier vers les haut-parleur
+		*/
 		speaker = aud_writeinit(rate, size, channels);
 		if (speaker < 0){
+			printf("Fermeture de connexion ...\n");
 			fermerConnexion(&cl);
 			exit(4);
 		}
@@ -75,27 +85,26 @@ int main(int argc, char const *argv[]) {
 		printf("Lecture du fichier son ...\n");
 		do{
 			/* lecture fichier */
-			lectureWav = partieSuivante(&cl, buf);
+			partFichier++;
+			lectureWav = partieSuivante(&cl, buf, partFichier);
 			if (lectureWav == -1){
 				/* fin fichier */
 			}else if (lectureWav < -1){
 				/* autre erreur */
+				printf("Fermeture de connexion ...\n");
 				fermerConnexion(&cl);
 				exit(5);
 			}else{
 				if(write(speaker, buf, lectureWav)<0){
 					perror("Erreur ecriture dans speaker");
+					printf("Fermeture de connexion ...\n");
 					fermerConnexion(&cl);
 					exit(6);
 				}
 			}
 		} while (lectureWav >=0);
-		
-		/* 
-			Fermeture de connexion :
-				envois d'une requète R_fermerCo au serveur
-				libère la mémoire alloué pour l'objet client
-	 	*/
+
+		printf("Fermeture de connexion ...\n");
 		fermerConnexion(&cl);
 	}
 	return 0;

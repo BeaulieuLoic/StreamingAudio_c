@@ -12,22 +12,40 @@
 #include <netdb.h>
 #include <signal.h>
 
-#define AS_portServer 5000
-#define AS_nbrMaxClient 4
+#include "requete.h"
+#include "audio.h"
 
-typedef struct proc
-{
+#define AS_portServer 5000
+#define AS_nbrMaxClient 5
+
+
+
+/*
+	pid : permet de définir le pid du processus enfant. 
+		Utilisé lorsque le processus principal doit tuer tout ces enfant lorsque le serveur doit s'arreter.
+
+	fdProc : descripteur de fichier permetant au processus principal de comuniquer avec le processus enfant.
+
+	utiliser : boolean permetant de voir si le processus enfant est réserver à un client
+*/
+typedef struct proc {
 	pid_t pid;
 	int fdProc;
 	int utiliser;
 } procFork;
 
+// Arret du serveur proprement lorsque le signal SIGINT (ctrl + c) est reçu 
+// ou lorsqu'un processus enfant s'arrete
 void arretServeur(int sig);
 
-int libererId(int idALIberer);
-
+// initialise les processus enfant qui devront s'occuper des clients
 int initListeFork(int fdSocket);
 
+/* 
+	Fonction directement appeler dans un processus enfant.
+	fdMain correspond au descripteur de fichier permetant au processus enfant de recevoir des messages envoyer par le processus principal
+	fdSocket est le descripteur de fichier correspondant à la socket du serveur
+*/
 void mainFork(int fdMain, int fdSocket);
 
 #endif

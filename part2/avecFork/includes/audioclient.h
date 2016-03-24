@@ -18,9 +18,4 @@
 #define AC_portServ 5000
 
 
-/* timeout en microseconde */
-#define AC_timeoutDemandeCo 1000000 // = 1 seconde
-
-
-
 #endif
