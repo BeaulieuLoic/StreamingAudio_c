@@ -1,6 +1,10 @@
 #ifndef _AUDIOCLIENT_H_
 #define _AUDIOCLIENT_H_
 
+/* Auteur : 
+	Loic Beaulieu
+	Maël PETIT
+*/
 
 #include <unistd.h>
 #include <stdio.h>

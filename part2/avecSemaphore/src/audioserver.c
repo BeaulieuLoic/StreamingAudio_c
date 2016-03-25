@@ -1,10 +1,15 @@
+/* Auteur : 
+	Loic Beaulieu
+	Maël PETIT
+*/
+
 #include "audioserver.h"
 
 
 // Liste des processus enfant qui vont s'occuper des clients
 // variable global pour permetre au handler de fermer la socket 
 // et de tuer tout les processus enfant en cas de problème
-//procFork listFork[AS_nbrMaxClient];
+// ainsi que de détruire la mémoire partagé et la sémaphore
 procFork *listFork = NULL;
 int fdSocket = -1;
 
@@ -19,6 +24,7 @@ struct sembuf down = {0,-1,0};
  
 // Arret du serveur proprement lorsque le signal SIGINT (ctrl + c) est reçu 
 // ou lorsqu'un processus enfant s'arrete
+// ou un autre problème (appeler avant un exit())
 void arretServeur(int sig){
 	if (sig == SIGINT || sig == SIGCHLD){
 		int i;
@@ -32,22 +38,33 @@ void arretServeur(int sig){
 
 		for (i = 0; i < AS_nbrMaxClient; ++i){
 			// On évite de tuer le processus qui vient de mourir
-			if (listFork[i].pid != pidEnfantMort){
+			if (listFork[i].pid!=-1 && listFork[i].pid != pidEnfantMort){
 				kill(listFork[i].pid, SIGINT);
 				wait(NULL);
+				listFork[i].pid = -1;
 				close(listFork[i].fdProc);
 			}
 		}
 
+		//Ferme la socket si elle à été initialisé
 		if (fdSocket != -1){
 			close(fdSocket);
 		}
-		// Détache la mémoire partager
-		shmdt(listFork);
-		// Supprime la mémoire partagé
-		shmctl(idMemPartage, IPC_RMID, NULL);
-		// Supprime la sémaphore
-		semctl(idSemaphore,0, IPC_RMID);
+
+		if (listFork != NULL){
+			// Détache la mémoire partager
+			shmdt(listFork);
+		}
+
+		if (idMemPartage >= 0){
+			// Supprime la mémoire partagé
+			shmctl(idMemPartage, IPC_RMID, NULL);
+		}
+
+		if (idSemaphore >= 0){
+			// Supprime la sémaphore
+			semctl(idSemaphore,0, IPC_RMID);
+		}
 		exit(0);
 	}
 }
@@ -89,6 +106,7 @@ int main(int argc, char const *argv[]) {
 	listFork = (procFork *) shmat(idMemPartage,0,0);
 	if (listFork == NULL){
 		perror("Erreur lors de l'attachement de listFork à la mémoire partagé");
+		arretServeur(SIGINT);
 		exit(11);
 	}
 
@@ -97,6 +115,7 @@ int main(int argc, char const *argv[]) {
 	idSemaphore = semget(IPC_PRIVATE, 1, IPC_CREAT | 0600);
 	if (idSemaphore < 0){
 		perror("Erreur lors de la création de la sémaphore");
+		arretServeur(SIGINT);
 		exit(12);
 	}
 
@@ -141,8 +160,6 @@ int main(int argc, char const *argv[]) {
 	// Variable utilisé pour définir l'id d'un nouveau client
 	int placeLibre = R_idNull;
 
-	char * port = NULL;
-
 	requete req;
 	socklen_t fromlen = sizeof(struct sockaddr_in);
 	
@@ -180,22 +197,16 @@ int main(int argc, char const *argv[]) {
 					printf("Connexion accepter, id : %d \n",placeLibre);
 
 					// Converti l'adresse ip du client en bytes pour l'envoyer au processus qui va s'occuper du client
-					inet_ntop(AF_INET, &(addrClient.sin_addr), adrClient, INET_ADDRSTRLEN);
-					write(listFork[placeLibre].fdProc, adrClient, INET_ADDRSTRLEN);
+					/*inet_ntop(AF_INET, &(addrClient.sin_addr), adrClient, INET_ADDRSTRLEN);
+					write(listFork[placeLibre].fdProc, adrClient, INET_ADDRSTRLEN);*/
 
+					// Envois de la requète au client
+					if(envoyerInfoProcEnfant(placeLibre, addrClient, req)<0){
+						perror("Erreur lors de l'envois d'info à un proc enfant");
+						arretServeur(SIGINT);
+						exit(1);
+					}
 
-					// Converti le num de port en bytes pour l'envoyer au processus qui va s'occuper du client
-					port = (void *)(&addrClient.sin_port);
-					write(listFork[placeLibre].fdProc, port,sizeof(unsigned short));
-
-					// Envoi la taille de la requète au processus fils
-					intToBytes(tmp, sizeofReq(req));
-					write(listFork[placeLibre].fdProc, tmp, sizeof(int));
-
-					
-					requeteToBytes(buf,req);
-					// Envois la requète du client au processus secondaire qui va la traité
-					write(listFork[placeLibre].fdProc, buf,sizeofReq(req));
 					listFork[placeLibre].utiliser = 1;
 				}else{
 					// Plus de place, envoi d'une requète R_serverPlein au client
@@ -213,18 +224,12 @@ int main(int argc, char const *argv[]) {
 			default:
 				// L'id est correcte si elle ce trouve entre 0 et AS_nbrMaxClient-1 et que le processus en question est occupé par un client
 				if ((req.id >= 0 || req.id < AS_nbrMaxClient) && listFork[req.id].utiliser){
-					
-					//Convertie le num de port en bytes pour l'envoyer au processus
-					port = (void *)(&addrClient.sin_port);
-					write(listFork[req.id].fdProc, port,sizeof(unsigned short));
-
-					// Envoi la taille de la requète au processus fils
-					intToBytes(tmp, sizeofReq(req));
-					write(listFork[req.id].fdProc, tmp, sizeof(int));
-
-					// Envoi la requète au processus fils
-					requeteToBytes(buf,req);
-					write(listFork[req.id].fdProc, buf,sizeofReq(req));
+					// Envois de la requète au client
+					if(envoyerInfoProcEnfant(req.id, addrClient, req )<0){
+						perror("Erreur lors de l'envois d'info à un proc enfant");
+						arretServeur(SIGINT);
+						exit(1);
+					}
 				}else{
 					// Erreur id non attribué
 					printf("Erreur id non attribué :%d\n", req.id);
@@ -247,6 +252,49 @@ int main(int argc, char const *argv[]) {
 }
 
 
+// Envoi au processus enfant la requète du client ainsi que le numéros de port utilisé pour comuniquer avec le client ainsi que l'adresse
+int envoyerInfoProcEnfant(int idFork, struct sockaddr_in adrClient, requete req){
+	char buf[AS_TaillePacketVersEnfant];
+	int curseur = 0;
+	// Converti le numéros de port en octets
+	memcpy(buf+curseur, (char *) &adrClient, sizeof(struct sockaddr_in));
+	curseur += sizeof(struct sockaddr_in);
+
+	// Stocke la taille réel de la requète 
+	memcpy(buf+curseur, (char *) &req.tailleData, sizeof(int));
+	curseur += sizeof(int);
+
+	// Mets la requète à sa taille maximum pour avoir une taille connue à l'avance quelque soit la requète
+	req.tailleData = R_tailleMaxData;
+	// Convertie la requète en octets.
+	requeteToBytes(buf+curseur,req);
+
+	return write(listFork[idFork].fdProc, buf,AS_TaillePacketVersEnfant);
+}
+
+// Récupère se qu'à envoyer le processus principal
+int attendInfoProcPrinc(int fd, struct sockaddr_in *adrClient, requete *req){
+	char buf[AS_TaillePacketVersEnfant];
+	int curseur = 0;
+	unsigned int tailleReelleData = 0;
+	if(read(fd, buf, AS_TaillePacketVersEnfant) < 0){
+		return -1;
+	}else{
+		// Récupère le numéros de port que le processus devra utilisé pour comuniquer avec le client
+		*adrClient = *((struct sockaddr_in *) buf+curseur);
+		curseur += sizeof(struct sockaddr_in);
+		
+
+		tailleReelleData = *((unsigned int *) buf+curseur);
+		curseur += sizeof(unsigned int);
+
+		// Convertie la partie du buf contenant la requète en requète
+		initRequeteFromBytes(req, buf+curseur);
+		req->tailleData = tailleReelleData;
+
+		return 0;
+	}
+}
 
 // initialise les processus enfant qui devront s'occuper des clients
 int initListeFork(int fdSocket){
@@ -303,7 +351,6 @@ void mainFork(int fdMain, int fdSocket){
 
 	read(fdMain, buf, sizeof(int));
 	int idFork = bytesToInt(buf);
-	int tailleReq = 0;
 
 	int blocFichierAct = -1;
 
@@ -311,28 +358,18 @@ void mainFork(int fdMain, int fdSocket){
 	
 	while (1){
 		if (!listFork[idFork].utiliser){
-			
-			/* 
-				Récupère l'adresse client, données envoyer à l'origine
-				par le processus principal
-			*/
-			if(read(fdMain, buf, INET_ADDRSTRLEN)<0){
-				perror("Erreur proc enfant lors du read pour récupérer addrClient");
-				exit(1);
-			}
-			inet_pton(AF_INET, buf, &(addrClient.sin_addr));
-			
-			blocFichierAct = -1;
+			result = 1;	
+		}else{
+			// définit un timeout pour déconecter le client automatiquement au bout d'un certain temps sans recevoir de message
+			fd_set read_set;
+			struct timeval timeout;
+			FD_ZERO(&read_set);
+			FD_SET(fdMain,&read_set);
+			timeout.tv_sec = 5;
+			timeout.tv_usec = 0;
+			result = select(fdMain+1,&read_set, NULL,NULL,&timeout);
 		}
 
-		// définit un timeout pour déconecter le client automatiquement au bout d'un certain temps sans recevoir de message
-		fd_set read_set;
-		struct timeval timeout;
-		FD_ZERO(&read_set);
-		FD_SET(fdMain,&read_set);
-		timeout.tv_sec = 5;
-		timeout.tv_usec = 0;
-		result = select(fdMain+1,&read_set, NULL,NULL,&timeout);
 		if (result < 0){
 			perror("Erreur lors du select dans un processus enfant");
 			exit(10);
@@ -350,35 +387,11 @@ void mainFork(int fdMain, int fdSocket){
 			printf("Client %d deconnecté car il n'à pas comuniquer avec le serveur depuis plus de 5 seconde\n", idFork);
 		}else{// tout se passe bien
 
-			// Récupère le numéros de port que le processus devra utilisé pour comuniquer avec le client
-			if(read(fdMain, buf, sizeof(unsigned short))<0){
-				perror("Erreur proc enfant lors du read pour récupérer port");
+			// récupère ce qu'à envoyer le client via le processus principal 
+			if(attendInfoProcPrinc(fdMain, &addrClient, &req)<0){
+				perror("Erreur proc enfant lors de attendInfoProcPrinc");
 				exit(1);
 			}
-			// Convertie les octets reçu en unsigned short 
-			unsigned short tmp = *((unsigned short *) buf);
-			addrClient.sin_port = *((unsigned short *) buf);
-
-
-			// Récupération de la taille de la requète qui va etre envoyer
-			if(read(fdMain, buf, sizeof(int)) < 0){
-				perror("Erreur proc enfant lors du read pour récupérer tailleReq");
-				exit(1);
-			}	
-			tailleReq = bytesToInt(buf);
-			if (tailleReq>R_tailleMaxReq){
-				printf("!!!!!!!!!!!!!!!!!%d!!!!!!!!!!!!!!!!!!!!!!\n",tmp);
-			}
-
-			//Récupère la requète envoyer par le client, relayé via le processus principal
-			if(read(fdMain, buf, tailleReq) < 0){
-				perror("Erreur proc enfant lors du read pour récupérer");
-				exit(1);
-			}
-
-
-			// Convertie buf en requète
-			initRequeteFromBytes(&req,buf);
 		
 			switch(req.typeReq){
 
@@ -417,6 +430,7 @@ void mainFork(int fdMain, int fdSocket){
 					printf("Client %d deconnecté\n", idFork);
 					// up 
 					semop(idSemaphore,&up,1);
+					blocFichierAct = -1;
 
 					break;
 
@@ -441,7 +455,6 @@ void mainFork(int fdMain, int fdSocket){
 							perror("Erreur proc enfant lors de l'envois du message fichierNonTrouver");
 							exit(3);
 						}
-						printf("Fichier non trouvé\n");
 					}else{
 						// Insère dans le buf qui va être envoyer au client, la fréquence, si c'est sur 8 ou 16 bit et mono ou stéréo
 						intToBytes(buf, rate);
@@ -456,7 +469,6 @@ void mainFork(int fdMain, int fdSocket){
 							perror("Erreur proc enfant lors de l'envois du message fichierTrouver");
 							exit(3);
 						}
-						printf("Fichier trouvé\n");
 					}
 					break;
 				// ################################################### Lecture partie suivante ###################################################
@@ -477,7 +489,7 @@ void mainFork(int fdMain, int fdSocket){
 						if (blocFichierAct != bytesToInt(req.data)){
 							lectureWav = read(fdFichierAudio, buf, R_tailleMaxData);
 							if (lectureWav < 0){
-								perror("Erreur ");
+								perror("Erreur proc enfant lors de la lecture du fichier audio");
 							}
 							blocFichierAct++;
 						}

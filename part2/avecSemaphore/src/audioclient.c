@@ -1,3 +1,7 @@
+/* Auteur : 
+	Loic Beaulieu
+	Maël PETIT
+*/
 #include "audioclient.h"
 #include "client.h"
 #include "audio.h"

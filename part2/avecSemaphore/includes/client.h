@@ -1,6 +1,11 @@
 #ifndef _CLIENT_H_
 #define _CLIENT_H_
 
+/* Auteur : 
+	Loic Beaulieu
+	Maël PETIT
+*/
+
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>

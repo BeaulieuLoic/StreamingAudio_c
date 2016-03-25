@@ -30,12 +30,6 @@ $(OBJDIR)requete.o: $(SRCDIR)requete.c $(INCDIR)requete.h
 $(OBJDIR)audio.o: $(SRCDIR)audio.c
 	gcc -Wall -c -I $(INCDIR) $(SRCDIR)audio.c -o $(OBJDIR)audio.o
 
-t: test
-	./a
-
-test: test.c $(OBJDIR)requete.o
-	$(CC) $(CFLAGS) -I $(INCDIR) test.c -o a $(OBJDIR)requete.o
-
 clean:
 	rm $(OBJDIR)*
 	rm $(BINDIR)*

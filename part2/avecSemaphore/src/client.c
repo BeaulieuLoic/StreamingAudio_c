@@ -1,3 +1,7 @@
+/* Auteur : 
+	Loic Beaulieu
+	Maël PETIT
+*/
 #include "client.h"
 
 

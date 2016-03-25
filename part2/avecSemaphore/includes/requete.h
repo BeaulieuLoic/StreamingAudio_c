@@ -1,6 +1,11 @@
 #ifndef _REQUETE_H_
 #define _REQUETE_H_
 
+/* Auteur : 
+	Loic Beaulieu
+	Maël PETIT
+*/
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>

@@ -1,0 +1,13 @@
+groupe de projet :
+Loic Beaulieu
+Maël PETIT
+
+Commande pour compiler :
+make bin/audioclient
+
+make bin/audioserver
+
+Commande pour executer :
+padsp bin/audioclient adrIp nomFichier
+
+bin/audioserver

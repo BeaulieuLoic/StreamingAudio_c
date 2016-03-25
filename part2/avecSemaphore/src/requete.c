@@ -1,3 +1,7 @@
+/* Auteur : 
+	Loic Beaulieu
+	Maël PETIT
+*/
 #include "requete.h"
 
 // Liste et documentation des types de requète dans requete.h
@@ -29,6 +33,7 @@ void initRequete(requete *req,int typeReq, int id,unsigned int tailleData, char 
 	if (buf == NULL){
 		req -> tailleData = 0;	
 	}
+	memset(req -> data, 0, R_tailleMaxData);
 	memcpy(req -> data, buf, req -> tailleData);
 }
 
@@ -70,6 +75,7 @@ void initRequeteFromBytes(requete *req, char *bytes){
 		printf("Warning initRequeteFromBytes, tailleData < 0\n");
 		req -> tailleData = 0;
 	}
+	memset(req -> data, 0, R_tailleMaxData);
 	memcpy(req -> data, bytes+(tailleInt*3), req -> tailleData);
 
 

@@ -1,6 +1,11 @@
 #ifndef _AUDIOSERVER_H_
 #define _AUDIOSERVER_H_
 
+/* Auteur : 
+	Loic Beaulieu
+	Maël PETIT
+*/
+
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
@@ -25,7 +30,8 @@
 #include "audio.h"
 
 #define AS_portServer 5000
-#define AS_nbrMaxClient 50
+#define AS_nbrMaxClient 40
+#define AS_TaillePacketVersEnfant R_tailleMaxReq + sizeof(int) + sizeof(struct sockaddr_in)
 
 
 
@@ -56,5 +62,9 @@ int initListeFork(int fdSocket);
 	fdSocket est le descripteur de fichier correspondant à la socket du serveur
 */
 void mainFork(int fdMain, int fdSocket);
+
+int envoyerInfoProcEnfant(int idFork, struct sockaddr_in adrClient, requete req);
+
+int attendInfoProcPrinc(int fd, struct sockaddr_in *adrClient, requete *req);
 
 #endif
