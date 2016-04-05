@@ -8,7 +8,6 @@
 
 
 client cl;
-pid_t pidEcho = -1;
 /* 
 	arrèt du client proprement lorsque le signal SIGINT (ctrl + c) est reçu.
 	prévient le serveur que le client se déconnecte
@@ -18,9 +17,6 @@ void arretClient(int sig){
 		printf("Arret ...\n");
 		printf("Fermeture de connexion ...\n");
 		fermerConnexion(&cl);
-		if (pidEcho != -1){
-			kill(pidEcho, SIGKILL);
-		}
 		exit(0);
 	}
 }
@@ -199,9 +195,10 @@ int main(int argc, char const *argv[]) {
 			fermerConnexion(&cl);
 			exit(4);
 		}
+
 		/*
 			Définit sigaction lorsque le processus reçois un SIGINT (ctrl + c)
-			pour arrèter correctement le serveur
+			pour arrèter correctement le client
 		*/
 		struct sigaction arretSig;
 		arretSig.sa_handler = arretClient;
@@ -231,11 +228,9 @@ int main(int argc, char const *argv[]) {
 					sur 8 bits
 					gauche -> indice pair du buffer
 					droite -> indice impair du buffer
-
 					sur 16 bits
-					gauche -> indice 0,1, 4,5, 8,9 ...
+					gauche -> indice 0,1, 4,5, 8,9 ... autrementdit à chaque fois que i%4==0 on modifie i et i+1
 					droite -> indice 2,3, 6,7 10,11 ... 
-
 				*/
 				i = 0;
 				int volAct = 0;
@@ -357,15 +352,16 @@ int main(int argc, char const *argv[]) {
 			}
 		} while (lectureWav >=0);
 
-		// attend la fin du processus echo
-		if (avecEcho){
-			wait(NULL);
-			close(fdForkEcho);
-		}
 
 
 		printf("Fermeture de connexion ...\n");
 		fermerConnexion(&cl);
+		// attend la fin du processus echo
+		if (avecEcho){
+			printf("Attente fin echo ...\n");
+			wait(NULL);
+			close(fdForkEcho);
+		}
 	}
 	return 0;
 }
@@ -483,7 +479,6 @@ int initFork(int rate, int size, int channels){
 		// Erreur lors du pipe
 		return -1;
 	}
-		pidEcho = pid;
 		return fdPipe[1];
 	}else if (pid == 0){
 		err = close(fdPipe[1]);
@@ -499,57 +494,108 @@ int initFork(int rate, int size, int channels){
 	}
 }
 
+
+
+// fonction pour définir un usleep non bloquand
+int decalageFait = 0;
+void finDelaiEcho(int sig){
+	if (sig == SIGCHLD){
+		decalageFait = 1;
+		wait(NULL);
+	}
+}
+
+
 void mainFork(int fdMain, int rate, int size, int channels){
+
+	// Création du processus enfant qui va servir de sleep non bloquant
+	pid_t pid = fork();
+	if (pid < 0){
+		perror("Erreur dans le proc enfant lors dela création du processus pour définir le délais");
+		exit(0);
+	}else if (pid == 0){
+		usleep(AC_decEcho);
+		exit(0);
+	}
+
+	// définit le handler, lorsque le processus enfant s'arrète après  AC_decEcho microSec, finDelaiEcho est appelé
+	struct sigaction finDelai;
+	finDelai.sa_handler = finDelaiEcho;
+	sigemptyset (&finDelai.sa_mask);
+	finDelai.sa_flags = 0;
+	sigaction(SIGCHLD, &finDelai, NULL);
+
+	// calcule le nombre d'octet lu par les haut parleur en 1 seconde
+	int octetParSec = (rate * size);
+
+	float nbMicroSec = AC_decEcho;
+	int octetParXSec =  ((nbMicroSec/1000000 * octetParSec));
+
+
+	// Le buffer est utilisé comme un tableau circulaire
+	// iDeb peut etre supérieur à iFin et inversement
+	// iDeb et iFin < octetParXSec
+	char * buf = malloc(octetParXSec);
+	int iDeb = 0;
+	int iFin = 0;
+
+	int recu = R_tailleMaxData;
+	
+
 	int speaker = aud_writeinit(rate, size,channels);
 	if (speaker <0){
 		perror("Erreur lors de la création d'un speaker dans proc echo");
 		exit(0);
 	}
-
-	// calcule le nombre d'octet lu par les haut parleur en 1 seconde
-	int octetParSec = rate * (size/8);
-
-
-	int decalageFait = 0;
-	int recu = R_tailleMaxData;
-	
-	int nbRecu = 0;
-	printf("%d\n", octetParSec);
-	char * buf = malloc(octetParSec*100);
-
-
-	while (recu == R_tailleMaxData){
-
-
+	while (iDeb != iFin || recu == R_tailleMaxData){
 		if (!decalageFait){
-			int i;
-			for (i = 0; i < AC_decEcho/1000; ++i){
-				if (recu == R_tailleMaxData){
-					recu = read(fdMain, buf+nbRecu, R_tailleMaxData);
+			if (recu == R_tailleMaxData){
+				recu = read(fdMain, buf+iFin, R_tailleMaxData);
+				// read interrompu par le handler qui détecte la mort du proc enfant
+				if (recu == -1){ 
+					recu = read(fdMain, buf+iFin, R_tailleMaxData);
 					if (recu < 0){
-						perror("Erreur dans proc echo lors du read");
-						break;
+						perror("Erreur lors du read lorsque que le décalage vien tout juste de ce finir");
 					}
-					nbRecu = nbRecu + recu;	
+					iFin = (iFin + recu)%octetParXSec;
+					//printf("go echo\n");
+
+				}else if ( recu < -1){
+					perror("Erreur lors du read avant que le décalage soit finit");
+					break;
+				}else{
+					iFin = (iFin + recu)%octetParXSec;
 				}
-				usleep(AC_decEcho/1000);
 			}
-			decalageFait = 1;
-		}else{
-			recu = read(fdMain, buf, R_tailleMaxData);
-			if (recu < 0){
-				perror("Erreur dans proc echo lors du read");
-				break;
+		}else{// décalage finit
+			if (recu == R_tailleMaxData){
+				recu = read(fdMain, buf+iFin, R_tailleMaxData);
+				if (recu < 0){
+					perror("Erreur dans proc echo lors du read");
+					break;
+				}			
+				iFin = (iFin + recu)%octetParXSec;	
 			}
-			nbRecu = recu;
-		}
-		if(write(speaker,buf, nbRecu) < 0){
-			perror("Erreur lors du write dans le speaker du proc echo");
-			break;
+
+			//regarde si on est à la fin du fichier
+			if (iDeb < iFin && iDeb + R_tailleMaxData > iFin){
+				if(write(speaker,buf+iDeb, recu) < 0){
+					perror("Erreur lors du write dans le speaker du proc echo");
+					break;
+				}
+				iDeb = (iDeb + recu)%octetParXSec;
+			}else{
+				if(write(speaker,buf+iDeb, R_tailleMaxData) < 0){
+					perror("Erreur lors du write dans le speaker du proc echo");
+					break;
+				}
+				iDeb = (iDeb + R_tailleMaxData)%octetParXSec;
+			}
 		}
 	}
 
 	close(speaker);
 	close(fdMain);
+	free(buf);
 	exit(0);
 }

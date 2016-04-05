@@ -24,9 +24,7 @@
 #define AC_portServ 5000
 
 /* temps en micro seconde  pour le décalage de l'echo */
-#define AC_decEcho 4000000
-
-#define AC_echoTailleBuf R_tailleMaxData*(AC_decEcho/100000)
+#define AC_decEcho 500000
 
 /* % du volume modifier pour l'echo*/
 #define AC_volEcho 75

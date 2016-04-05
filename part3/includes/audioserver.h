@@ -30,7 +30,7 @@
 #include "audio.h"
 
 #define AS_portServer 5000
-#define AS_nbrMaxClient 40
+#define AS_nbrMaxClient 4
 #define AS_TaillePacketVersEnfant R_tailleMaxReq + sizeof(int) + sizeof(struct sockaddr_in)
 
 
