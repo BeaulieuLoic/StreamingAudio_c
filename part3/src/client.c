@@ -327,6 +327,7 @@ int partieSuivante(client *cl, char *buf, int partFichier){
 				return -7;
 			}else if(reqRecv.typeReq == R_idInexistant){
 				printf("Le serveur ne reconnais pas l'id qui à été envoyer lors de la demande de fichier\n");
+				return -5;
 			}else{
 				printf("La requète reçu en réponse à la demande de fichier n'est pas prévue: %d\n",reqRecv.typeReq);
 				return -4;

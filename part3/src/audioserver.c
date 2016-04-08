@@ -196,11 +196,7 @@ int main(int argc, char const *argv[]) {
 				if (placeLibre != -1){
 					printf("Connexion accepter, id : %d \n",placeLibre);
 
-					// Converti l'adresse ip du client en bytes pour l'envoyer au processus qui va s'occuper du client
-					/*inet_ntop(AF_INET, &(addrClient.sin_addr), adrClient, INET_ADDRSTRLEN);
-					write(listFork[placeLibre].fdProc, adrClient, INET_ADDRSTRLEN);*/
-
-					// Envois de la requète au client
+					// Envois de la requète au processus enfant d'id placeLibre
 					if(envoyerInfoProcEnfant(placeLibre, addrClient, req)<0){
 						perror("Erreur lors de l'envois d'info à un proc enfant");
 						arretServeur(SIGINT);
@@ -210,7 +206,7 @@ int main(int argc, char const *argv[]) {
 					listFork[placeLibre].utiliser = 1;
 				}else{
 					// Plus de place, envoi d'une requète R_serverPlein au client
-					printf("Demande de connexion d'un client refusé.\n");
+					printf("Demande de connexion d'un client refusé car serveur plein.\n");
 					initRequete(&req, R_serverPlein, R_idNull, 0, NULL);
 					requeteToBytes(buf, req);
 					if(sendto(fdSocket, buf,sizeofReq(req),0,

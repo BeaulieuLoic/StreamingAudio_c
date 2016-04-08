@@ -8,6 +8,10 @@ make bin/audioclient
 make bin/audioserver
 
 Commande pour executer :
-padsp bin/audioclient adrIp nomFichier
+padsp bin/audioclient adresseIp nomFichier [-filte]*
 
 bin/audioserver
+
+
+pour la liste des filtres, voir le rapport
+
